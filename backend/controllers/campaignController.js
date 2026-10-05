@@ -1,6 +1,9 @@
 const { z } = require('zod');
 const Campaign = require('../models/Campaign');
 const Update = require('../models/Update');
+const Comment = require('../models/Comment');
+const Bookmark = require('../models/Bookmark');
+const Donation = require('../models/Donation');
 
 // Schema validation for creating a campaign
 const campaignCreateSchema = z.object({
@@ -32,6 +35,12 @@ const campaignUpdatePostSchema = z.object({
   images: z.array(z.string().url()).optional()
 });
 
+// Schema validation for comments
+const commentCreateSchema = z.object({
+  text: z.string().min(1, 'Comment text cannot be empty').max(500, 'Comment max 500 chars').trim(),
+  replyTo: z.string().optional()
+});
+
 // @desc    Create a new campaign
 // @route   POST /api/campaigns
 const createCampaign = async (req, res) => {
@@ -49,7 +58,6 @@ const createCampaign = async (req, res) => {
     
     let slug = slugBase;
     if (existingCampaign) {
-      // Append unique timestamp hash to avoid duplicate slug error
       slug = `${slugBase}-${Date.now().toString().slice(-4)}`;
     }
 
@@ -59,14 +67,18 @@ const createCampaign = async (req, res) => {
       description,
       category,
       fundingGoal,
-      deadline: new Date(deadline),
+      deadline,
       coverImage,
       gallery: gallery || [],
       creator: req.user._id
     });
 
     await campaign.save();
-    res.status(201).json({ message: 'Campaign created successfully', campaign });
+
+    res.status(201).json({
+      message: 'Campaign created successfully',
+      campaign
+    });
   } catch (err) {
     res.status(500).json({ error: 'Server error during campaign creation.' });
   }
@@ -95,7 +107,7 @@ const getCampaigns = async (req, res) => {
     }
 
     // Filter by category
-    if (category) {
+    if (category && category !== 'All') {
       query.category = category;
     }
 
@@ -115,7 +127,7 @@ const getCampaigns = async (req, res) => {
       sortQuery = { backersCount: -1, amountRaised: -1 };
     } else if (sort === 'ending-soon') {
       sortQuery = { deadline: 1 };
-      query.deadline = { $gt: new Date() }; // Only campaigns that haven't deadline expired
+      query.deadline = { $gt: new Date() };
     }
 
     // Pagination
@@ -133,12 +145,33 @@ const getCampaigns = async (req, res) => {
       pagination: {
         total: totalCampaigns,
         page: parseInt(page),
-        pages: Math.ceil(totalCampaigns / parseInt(limit)),
-        limit: parseInt(limit)
+        pages: Math.ceil(totalCampaigns / parseInt(limit))
       }
     });
   } catch (err) {
-    res.status(500).json({ error: 'Server error during campaigns fetch.' });
+    res.status(500).json({ error: 'Server error while fetching campaigns.' });
+  }
+};
+
+// @desc    Get platform aggregate stats for Animated Counter
+// @route   GET /api/campaigns/stats
+const getPlatformStats = async (req, res) => {
+  try {
+    const campaigns = await Campaign.find();
+    
+    const totalRaised = campaigns.reduce((acc, c) => acc + (c.amountRaised || 0), 0);
+    const totalBackers = campaigns.reduce((acc, c) => acc + (c.backersCount || 0), 0);
+    const totalCampaigns = campaigns.length;
+    const fundedCampaigns = campaigns.filter(c => c.status === 'funded' || c.amountRaised >= c.fundingGoal).length;
+
+    res.json({
+      totalRaised,
+      totalBackers,
+      totalCampaigns,
+      fundedCampaigns
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while fetching platform stats.' });
   }
 };
 
@@ -147,7 +180,7 @@ const getCampaigns = async (req, res) => {
 const getCampaignBySlug = async (req, res) => {
   try {
     const campaign = await Campaign.findOne({ slug: req.params.slug })
-      .populate('creator', 'name avatar bio email');
+      .populate('creator', 'name email avatar bio');
 
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found.' });
@@ -155,11 +188,11 @@ const getCampaignBySlug = async (req, res) => {
 
     res.json({ campaign });
   } catch (err) {
-    res.status(500).json({ error: 'Server error during campaign fetch.' });
+    res.status(500).json({ error: 'Server error while fetching campaign details.' });
   }
 };
 
-// @desc    Update a campaign details
+// @desc    Update campaign details or status (Creator/Admin only)
 // @route   PUT /api/campaigns/:id
 const updateCampaign = async (req, res) => {
   try {
@@ -173,27 +206,21 @@ const updateCampaign = async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found.' });
     }
 
-    // Verify creator authorization (Only creator or admin can update)
+    // Verify creator authorization (or admin role)
     if (campaign.creator.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Unauthorized: You did not create this campaign.' });
+      return res.status(403).json({ error: 'Unauthorized: Only the creator or an admin can update this campaign.' });
     }
 
-    // Apply updates
-    const updates = parseResult.data;
-    if (updates.deadline) updates.deadline = new Date(updates.deadline);
-
-    Object.keys(updates).forEach(key => {
-      campaign[key] = updates[key];
-    });
-
+    Object.assign(campaign, parseResult.data);
     await campaign.save();
+
     res.json({ message: 'Campaign updated successfully', campaign });
   } catch (err) {
-    res.status(500).json({ error: 'Server error during campaign update.' });
+    res.status(500).json({ error: 'Server error while updating campaign.' });
   }
 };
 
-// @desc    Post a campaign progress update
+// @desc    Post update to a campaign
 // @route   POST /api/campaigns/:id/updates
 const addCampaignUpdate = async (req, res) => {
   try {
@@ -207,7 +234,6 @@ const addCampaignUpdate = async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found.' });
     }
 
-    // Verify creator authorization
     if (campaign.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: 'Unauthorized: Only the campaign creator can publish updates.' });
     }
@@ -246,11 +272,103 @@ const getCampaignUpdates = async (req, res) => {
   }
 };
 
+// @desc    Get comments for a campaign
+// @route   GET /api/campaigns/:id/comments
+const getCampaignComments = async (req, res) => {
+  try {
+    const comments = await Comment.find({ campaign: req.params.id })
+      .populate('user', 'name avatar role')
+      .sort({ createdAt: -1 });
+
+    res.json({ comments });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while fetching comments.' });
+  }
+};
+
+// @desc    Post a comment to a campaign
+// @route   POST /api/campaigns/:id/comments
+const addCampaignComment = async (req, res) => {
+  try {
+    const parseResult = commentCreateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors[0].message });
+    }
+
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+
+    const comment = new Comment({
+      campaign: campaign._id,
+      user: req.user._id,
+      text: parseResult.data.text,
+      replyTo: parseResult.data.replyTo || null
+    });
+
+    await comment.save();
+    await comment.populate('user', 'name avatar role');
+
+    res.status(201).json({ message: 'Comment posted successfully', comment });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while posting comment.' });
+  }
+};
+
+// @desc    Toggle bookmark for a campaign
+// @route   POST /api/campaigns/:id/bookmark
+const toggleBookmark = async (req, res) => {
+  try {
+    const campaignId = req.params.id;
+    const userId = req.user._id;
+
+    const existing = await Bookmark.findOne({ user: userId, campaign: campaignId });
+
+    if (existing) {
+      await Bookmark.findByIdAndDelete(existing._id);
+      return res.json({ bookmarked: false, message: 'Removed from bookmarks' });
+    } else {
+      const bookmark = new Bookmark({ user: userId, campaign: campaignId });
+      await bookmark.save();
+      return res.json({ bookmarked: true, message: 'Added to bookmarks' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while toggling bookmark.' });
+  }
+};
+
+// @desc    Get logged in user's bookmarked campaigns
+// @route   GET /api/campaigns/bookmarks/my-bookmarks
+const getUserBookmarks = async (req, res) => {
+  try {
+    const bookmarks = await Bookmark.find({ user: req.user._id })
+      .populate({
+        path: 'campaign',
+        populate: { path: 'creator', select: 'name avatar' }
+      })
+      .sort({ createdAt: -1 });
+
+    const campaigns = bookmarks
+      .map(b => b.campaign)
+      .filter(c => c !== null);
+
+    res.json({ bookmarks: campaigns });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while fetching bookmarks.' });
+  }
+};
+
 module.exports = {
   createCampaign,
   getCampaigns,
+  getPlatformStats,
   getCampaignBySlug,
   updateCampaign,
   addCampaignUpdate,
-  getCampaignUpdates
+  getCampaignUpdates,
+  getCampaignComments,
+  addCampaignComment,
+  toggleBookmark,
+  getUserBookmarks
 };

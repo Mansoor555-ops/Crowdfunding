@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
+import { User, Bookmark } from 'lucide-react'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -18,7 +19,6 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Mock authentication check for Phase 8 (will connect to AuthContext in Phase 9)
   const userString = localStorage.getItem('user')
   const user = userString ? JSON.parse(userString) : null
 
@@ -42,23 +42,33 @@ export function Navbar() {
         </span>
       </Link>
 
-      {/* Nav Links Center/Right */}
+      {/* Nav Links Center */}
       <div className="hidden md:flex items-center gap-8">
         <Link to="/campaigns" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
           Explore
         </Link>
-        <a href="#how-it-works" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
+        <Link to="/#how-it-works" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
           How It Works
-        </a>
-        <a href="#faq" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
+        </Link>
+        <Link to="/#faq" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
           FAQ
-        </a>
+        </Link>
       </div>
 
       {/* Action Buttons Far Right */}
       <div className="flex items-center gap-3">
         {user ? (
           <>
+            <Link to="/profile">
+              <Button variant="nav-secondary" className="flex items-center gap-1.5 px-3">
+                <img
+                  src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'}
+                  alt={user.name}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+                <span className="hidden sm:inline text-xs font-bold">{user.name?.split(' ')[0]}</span>
+              </Button>
+            </Link>
             <Link to="/dashboard">
               <Button variant="nav-secondary">Dashboard</Button>
             </Link>

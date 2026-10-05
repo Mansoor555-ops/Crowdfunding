@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Campaign = require('../models/Campaign');
 const Donation = require('../models/Donation');
 const Update = require('../models/Update');
+const Comment = require('../models/Comment');
+const Bookmark = require('../models/Bookmark');
 
 const seedDatabase = async () => {
   try {
@@ -11,13 +13,13 @@ const seedDatabase = async () => {
       return;
     }
 
-    console.log('Seeding database with mock creators, campaigns, and donations...');
+    console.log('Seeding database with mock creators, campaigns, comments, and donations...');
 
     // 1. Create Users
     const creatorUser = new User({
       name: 'Elena Rostova',
       email: 'creator@fundrise.com',
-      password: 'password123', // Hashed in pre-save hook
+      password: 'password123',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
       bio: 'Industrial Designer & Publisher based in Copenhagen. Focused on tactile materials and sleek product engineering.',
       role: 'creator'
@@ -44,7 +46,7 @@ const seedDatabase = async () => {
     });
     await adminUser.save();
 
-    // 2. Create Campaigns
+    // 2. Create 6 Rich Campaigns
     const campaignsData = [
       {
         title: 'Orbital Key: The Zero-Gravity EDC Carabiner',
@@ -73,7 +75,7 @@ const seedDatabase = async () => {
         gallery: [
           'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?auto=format&fit=crop&q=80&w=800'
         ],
-        status: 'funded', // status updated to funded since raised > goal
+        status: 'funded',
         creator: creatorUser._id,
         backersCount: 88
       },
@@ -104,19 +106,46 @@ const seedDatabase = async () => {
         status: 'active',
         creator: creatorUser._id,
         backersCount: 32
+      },
+      {
+        title: 'Resilient Reefs: Marine Sanctuary Restoration',
+        description: 'An ocean conservation initiative planting heat-tolerant coral nurseries across damaged barrier reefs. Our team of marine biologists uses 3D-printed ceramic reef structures to accelerate coral attachment by 300%.\n\nJoin our community of ocean backers and receive monthly underwater camera updates monitoring coral growth in real-time.',
+        category: 'Charity',
+        fundingGoal: 30000,
+        amountRaised: 22100,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 22),
+        coverImage: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800',
+        gallery: [
+          'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=800'
+        ],
+        status: 'active',
+        creator: creatorUser._id,
+        backersCount: 164
+      },
+      {
+        title: 'Acoustic Minimal: Solid Walnut Desktop Speakers',
+        description: 'Handcrafted active studio monitors sculpted from solid American walnut and brushed brass. Featuring audiophile custom silk dome tweeters and passive bass radiators tuned for warm, room-filling soundscapes.\n\nDesigned for minimalist workspaces, each pair comes individually numbered with a certificate of acoustic tuning.',
+        category: 'Tech',
+        fundingGoal: 20000,
+        amountRaised: 15800,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
+        coverImage: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80&w=800',
+        gallery: [],
+        status: 'active',
+        creator: creatorUser._id,
+        backersCount: 110
       }
     ];
 
     const seededCampaigns = [];
     for (const data of campaignsData) {
-      // Create slugs
       const slug = data.title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
       const campaign = new Campaign({ ...data, slug });
       await campaign.save();
       seededCampaigns.push(campaign);
     }
 
-    // 3. Create mock donations to populate backer lists
+    // 3. Create mock donations
     const mockDonations = [
       {
         amount: 250,
@@ -129,7 +158,7 @@ const seedDatabase = async () => {
       },
       {
         amount: 50,
-        donor: null, // Guest
+        donor: null,
         campaign: seededCampaigns[0]._id,
         isAnonymous: true,
         status: 'succeeded',
@@ -159,6 +188,12 @@ const seedDatabase = async () => {
         title: 'CNC Precision Prototype Verified!',
         content: 'We received our first Grade 5 Titanium precision CNC prototype from our manufacturing partner today. The magnetic gates lock with extreme centering alignment. Visual tolerances are pristine. Next up is load testing!',
         images: ['https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=800']
+      },
+      {
+        campaign: seededCampaigns[1]._id,
+        title: 'Linen Paper Proofs Approved',
+        content: 'The 120gsm FSC-certified uncoated linen paper proofs just arrived from our press in Copenhagen. The ink saturation and tactile tooth feel incredible!',
+        images: []
       }
     ];
 
@@ -167,7 +202,38 @@ const seedDatabase = async () => {
       await up.save();
     }
 
-    console.log('✓ Seeding complete. Pre-populated mock campaigns, user sessions, and updates.');
+    // 5. Create mock comments
+    const mockComments = [
+      {
+        campaign: seededCampaigns[0]._id,
+        user: donorUser._id,
+        text: 'The titanium finish looks incredible! Does it include a key ring attachment loop?'
+      },
+      {
+        campaign: seededCampaigns[0]._id,
+        user: creatorUser._id,
+        text: 'Yes! The top loop is precision milled to fit standard split rings up to 3.5mm thick.'
+      },
+      {
+        campaign: seededCampaigns[1]._id,
+        user: donorUser._id,
+        text: 'Super excited for Issue 01! Will international shipping include tracking?'
+      }
+    ];
+
+    for (const data of mockComments) {
+      const comm = new Comment(data);
+      await comm.save();
+    }
+
+    // 6. Create mock bookmarks
+    const mockBookmark = new Bookmark({
+      user: donorUser._id,
+      campaign: seededCampaigns[0]._id
+    });
+    await mockBookmark.save();
+
+    console.log('✓ Seeding complete. Pre-populated mock campaigns, updates, comments, and bookmarks.');
   } catch (err) {
     console.error('Error seeding database:', err);
   }

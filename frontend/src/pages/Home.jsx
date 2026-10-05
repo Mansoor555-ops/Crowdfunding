@@ -3,13 +3,25 @@ import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Reveal } from '../components/ui/Reveal'
-import { Sparkles, Layers, ShieldCheck, Zap, ChevronDown } from 'lucide-react'
+import { AnimatedCounter } from '../components/ui/AnimatedCounter'
+import { Sparkles, Layers, ShieldCheck, Zap, ChevronDown, TrendingUp, Users, Award } from 'lucide-react'
 
 export default function Home() {
   const [campaigns, setCampaigns] = useState([])
+  const [stats, setStats] = useState({ totalRaised: 92050, totalBackers: 633, totalCampaigns: 6, fundedCampaigns: 2 })
   const [activeFaq, setActiveFaq] = useState(null)
 
   useEffect(() => {
+    // Fetch platform stats
+    fetch('/api/campaigns/stats')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.totalRaised !== undefined) {
+          setStats(data)
+        }
+      })
+      .catch(() => {})
+
     // Fetch active campaigns from backend
     fetch('/api/campaigns')
       .then((r) => r.json())
@@ -189,6 +201,41 @@ export default function Home() {
               </div>
             </div>
           </Card>
+        </Reveal>
+
+        {/* Animated Platform Metrics Banner */}
+        <Reveal delay={0.4} className="pt-2 max-w-[1080px] mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-text-ink text-surface-white p-8 rounded-card-feature shadow-xl border border-text-ink/10">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-accent-peach text-xs font-bold uppercase tracking-wider">
+                <TrendingUp size={16} /> Total Raised
+              </div>
+              <p className="font-display text-3xl md:text-4xl font-extrabold text-white">
+                <AnimatedCounter value={stats.totalRaised} prefix="$" />
+              </p>
+              <p className="text-xs text-white/60">Distributed across verified escrow</p>
+            </div>
+
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-accent-peach text-xs font-bold uppercase tracking-wider">
+                <Users size={16} /> Active Backers
+              </div>
+              <p className="font-display text-3xl md:text-4xl font-extrabold text-white">
+                <AnimatedCounter value={stats.totalBackers} />
+              </p>
+              <p className="text-xs text-white/60">Global community of backers</p>
+            </div>
+
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-accent-peach text-xs font-bold uppercase tracking-wider">
+                <Award size={16} /> Funded Projects
+              </div>
+              <p className="font-display text-3xl md:text-4xl font-extrabold text-white">
+                <AnimatedCounter value={stats.fundedCampaigns || stats.totalCampaigns} />
+              </p>
+              <p className="text-xs text-white/60">Successfully funded campaigns</p>
+            </div>
+          </div>
         </Reveal>
       </section>
 
