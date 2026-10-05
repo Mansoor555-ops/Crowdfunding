@@ -16,6 +16,10 @@ const requireAuth = async (req, res, next) => {
       return res.status(401).json({ error: 'User associated with this token no longer exists.' });
     }
 
+    if (user.isSuspended) {
+      return res.status(403).json({ error: 'Account suspended. Please contact platform support.' });
+    }
+
     req.user = user;
     next();
   } catch (err) {
@@ -30,19 +34,18 @@ const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(); // Proceed without attaching req.user
+      return next();
     }
 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     
     const user = await User.findById(decoded.id).select('-password');
-    if (user) {
+    if (user && !user.isSuspended) {
       req.user = user;
     }
     next();
   } catch (err) {
-    // If token is invalid or expired, we don't throw 401, we just proceed as guest
     next();
   }
 };
@@ -54,8 +57,18 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const requireRole = (role) => {
+  return (req, res, next) => {
+    if (!req.user || req.user.role !== role) {
+      return res.status(403).json({ error: `Access denied. ${role} privileges required.` });
+    }
+    next();
+  };
+};
+
 module.exports = {
   requireAuth,
   optionalAuth,
-  requireAdmin
+  requireAdmin,
+  requireRole
 };
