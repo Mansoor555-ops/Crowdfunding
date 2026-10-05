@@ -35,6 +35,10 @@ const UserSchema = new mongoose.Schema({
     enum: ['creator', 'donor', 'admin'], 
     default: 'donor' 
   },
+  isSuspended: {
+    type: Boolean,
+    default: false
+  },
   refreshTokens: {
     type: [String],
     default: []

@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const RewardTierSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  minimumAmount: { type: Number, required: true, min: 1 },
+  estimatedDelivery: { type: String, default: '' },
+  quantityLimit: { type: Number, default: 0 }, // 0 = unlimited
+  claimedCount: { type: Number, default: 0 }
+});
+
 const CampaignSchema = new mongoose.Schema({
   title: { 
     type: String, 
@@ -20,7 +29,7 @@ const CampaignSchema = new mongoose.Schema({
     type: String, 
     required: [true, 'Campaign category is required'],
     enum: {
-      values: ['Creative', 'Tech', 'Community', 'Charity', 'Education'],
+      values: ['Creative', 'Tech', 'Community', 'Charity', 'Education', 'Health', 'Environment', 'Business', 'Other'],
       message: '{VALUE} is not a supported category'
     }
   },
@@ -48,8 +57,17 @@ const CampaignSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['draft', 'active', 'funded', 'expired', 'cancelled'], 
+    enum: ['draft', 'pending_review', 'active', 'funded', 'expired', 'cancelled', 'rejected'], 
     default: 'active' 
+  },
+  rejectionReason: {
+    type: String,
+    default: ''
+  },
+  rewardTiers: [RewardTierSchema],
+  tags: {
+    type: [String],
+    default: []
   },
   creator: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -65,13 +83,13 @@ const CampaignSchema = new mongoose.Schema({
 
 // Auto-generate slug from title before saving
 CampaignSchema.pre('save', function (next) {
-  if (!this.isModified('title')) return next();
+  if (!this.isModified('title') || this.slug) return next();
   this.slug = this.title
     .toLowerCase()
-    .replace(/[^\w\s-]/g, '') // Remove non-word characters except spaces/hyphens
+    .replace(/[^\w\s-]/g, '')
     .trim()
-    .replace(/\s+/g, '-')     // Replace spaces with hyphens
-    .replace(/-+/g, '-');     // Replace multiple hyphens with single
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
   next();
 });
 

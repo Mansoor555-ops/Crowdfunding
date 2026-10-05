@@ -2,13 +2,15 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_
 const { z } = require('zod');
 const Donation = require('../models/Donation');
 const Campaign = require('../models/Campaign');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 const isStripeMocked = !process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.startsWith('sk_test_mock');
 
 // Validate donation intent request
 const donationIntentSchema = z.object({
   campaignId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Campaign ID'),
-  amount: z.number().min(5, 'Minimum donation is $5'),
+  amount: z.number().min(1, 'Minimum donation is $1'),
   isAnonymous: z.boolean().default(false),
   rewardTier: z.string().optional()
 });
@@ -17,10 +19,12 @@ const donationIntentSchema = z.object({
 const processSuccessfulDonation = async ({ paymentIntentId, campaignId, donorId, amount, isAnonymous, rewardTier }) => {
   // Find or create successful donation record
   let donation = await Donation.findOne({ paymentIntentId });
-  
+  const receiptNumber = `FR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+
   if (donation) {
-    if (donation.status === 'succeeded') return donation; // Already processed
+    if (donation.status === 'succeeded') return donation;
     donation.status = 'succeeded';
+    donation.receiptNumber = donation.receiptNumber || receiptNumber;
     await donation.save();
   } else {
     donation = new Donation({
@@ -30,6 +34,7 @@ const processSuccessfulDonation = async ({ paymentIntentId, campaignId, donorId,
       isAnonymous,
       status: 'succeeded',
       paymentIntentId,
+      receiptNumber,
       rewardTier: rewardTier || null
     });
     await donation.save();
@@ -41,12 +46,46 @@ const processSuccessfulDonation = async ({ paymentIntentId, campaignId, donorId,
     campaign.amountRaised += amount;
     campaign.backersCount += 1;
 
+    // Increment reward tier claimedCount if applicable
+    if (rewardTier && campaign.rewardTiers && campaign.rewardTiers.length > 0) {
+      const tierObj = campaign.rewardTiers.find(t => t.title === rewardTier);
+      if (tierObj) {
+        tierObj.claimedCount = (tierObj.claimedCount || 0) + 1;
+      }
+    }
+
     // Transition status to 'funded' if goal reached
     if (campaign.amountRaised >= campaign.fundingGoal && campaign.status === 'active') {
       campaign.status = 'funded';
     }
 
     await campaign.save();
+
+    // Notify Creator
+    let donorLabel = isAnonymous ? 'An anonymous backer' : 'A backer';
+    if (!isAnonymous && donorId) {
+      const u = await User.findById(donorId);
+      if (u) donorLabel = u.name;
+    }
+
+    await Notification.create({
+      user: campaign.creator,
+      type: 'donation_received',
+      title: '🎉 New Backer Received!',
+      message: `${donorLabel} contributed $${amount} to "${campaign.title}".`,
+      link: `/campaigns/${campaign.slug}`
+    });
+
+    // Notify Donor (if authenticated)
+    if (donorId) {
+      await Notification.create({
+        user: donorId,
+        type: 'donation_received',
+        title: 'Donation Receipt Generated',
+        message: `Thank you for contributing $${amount} to "${campaign.title}". Receipt #: ${donation.receiptNumber}`,
+        link: `/dashboard`
+      });
+    }
   }
 
   return donation;
@@ -77,11 +116,9 @@ const createPaymentIntent = async (req, res) => {
     let paymentIntentId = '';
 
     if (isStripeMocked) {
-      // Generate a mock payment intent ID
       paymentIntentId = `pi_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       clientSecret = `${paymentIntentId}_secret_mock`;
     } else {
-      // Create Stripe PaymentIntent in cents
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100),
         currency: 'usd',
@@ -127,10 +164,8 @@ const handleStripeWebhook = async (req, res) => {
 
   try {
     if (isStripeMocked) {
-      // Mock event from request payload directly
       event = req.body;
     } else {
-      // Real Stripe signature verification
       event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     }
   } catch (err) {
@@ -151,30 +186,30 @@ const handleStripeWebhook = async (req, res) => {
         rewardTier: rewardTier === 'none' ? null : rewardTier
       });
       
-      // Hook for real-time notification socket triggers in Phase 7
       if (req.app.get('socketio')) {
         const io = req.app.get('socketio');
-        // Fetch donor name (or 'Anonymous')
         let donorName = 'Anonymous';
-        if (!isAnonymous && donorId && donorId !== 'guest') {
-          const User = require('../models/User');
+        if (isAnonymous !== 'true' && donorId && donorId !== 'guest') {
           const user = await User.findById(donorId);
           if (user) donorName = user.name;
         }
+
+        const campaign = await Campaign.findById(campaignId).select('title');
         
-        // 1. Emit to campaign room for detail page feeds
         io.to(`campaign-${campaignId}`).emit('donation-received', {
           amount: parseFloat(amount),
           donorName,
-          createdAt: donation.createdAt
+          isAnonymous: isAnonymous === 'true',
+          timestamp: donation.createdAt
         });
 
-        // 2. Emit globally for homepage notifications
         io.emit('new-donation', {
           campaignId,
+          campaignTitle: campaign?.title || 'a campaign',
           amount: parseFloat(amount),
           donorName,
-          createdAt: donation.createdAt
+          isAnonymous: isAnonymous === 'true',
+          timestamp: donation.createdAt
         });
       }
 
@@ -216,7 +251,6 @@ const confirmMockPayment = async (req, res) => {
       return res.status(400).json({ error: 'Donation already completed.' });
     }
 
-    // Trigger mock webhook payload call internally
     const mockWebhookBody = {
       type: 'payment_intent.succeeded',
       data: {
@@ -233,7 +267,6 @@ const confirmMockPayment = async (req, res) => {
       }
     };
 
-    // Forward to the webhook processor
     req.body = mockWebhookBody;
     return handleStripeWebhook(req, res);
   } catch (err) {
@@ -254,10 +287,33 @@ const getCampaignDonations = async (req, res) => {
   }
 };
 
+// @desc    Get detailed donation receipt
+// @route   GET /api/donations/receipt/:id
+const getReceipt = async (req, res) => {
+  try {
+    const donation = await Donation.findById(req.params.id)
+      .populate('donor', 'name email')
+      .populate({
+        path: 'campaign',
+        select: 'title slug coverImage creator',
+        populate: { path: 'creator', select: 'name email' }
+      });
+
+    if (!donation) {
+      return res.status(404).json({ error: 'Receipt not found.' });
+    }
+
+    res.json({ receipt: donation });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while fetching receipt.' });
+  }
+};
+
 module.exports = {
   createPaymentIntent,
   handleStripeWebhook,
   getMyDonations,
   confirmMockPayment,
-  getCampaignDonations
+  getCampaignDonations,
+  getReceipt
 };

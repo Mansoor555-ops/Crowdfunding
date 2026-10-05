@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
@@ -64,6 +65,9 @@ app.use(cors({
 // Request body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static uploads folder for uploaded media
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Mount central API routes
 app.use('/api', apiRoutes);

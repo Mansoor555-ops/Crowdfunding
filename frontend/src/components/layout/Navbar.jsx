@@ -1,32 +1,39 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
-import { User, Bookmark } from 'lucide-react'
+import { AuthContext } from '../../context/AuthContext'
+import { Bell, ShieldCheck, PlusCircle } from 'lucide-react'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
+  const { user, logout } = useContext(AuthContext)
+  const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setScrolled(true)
-      } else {
-        setScrolled(false)
-      }
+      setScrolled(window.scrollY > 10)
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const userString = localStorage.getItem('user')
-  const user = userString ? JSON.parse(userString) : null
+  useEffect(() => {
+    if (user) {
+      fetch('/api/notifications', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.unreadCount !== undefined) setUnreadCount(data.unreadCount)
+        })
+        .catch(() => {})
+    }
+  }, [user])
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+  const handleLogoutClick = () => {
+    logout()
     navigate('/')
-    window.location.reload()
   }
 
   return (
@@ -44,14 +51,14 @@ export function Navbar() {
 
       {/* Nav Links Center */}
       <div className="hidden md:flex items-center gap-8">
-        <Link to="/campaigns" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
+        <Link to="/discover" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
           Explore
         </Link>
-        <Link to="/#how-it-works" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
+        <Link to="/how-it-works" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
           How It Works
         </Link>
-        <Link to="/#faq" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
-          FAQ
+        <Link to="/about" className="text-[15px] font-medium text-text-secondary hover:text-text-ink transition-colors">
+          About
         </Link>
       </div>
 
@@ -59,6 +66,29 @@ export function Navbar() {
       <div className="flex items-center gap-3">
         {user ? (
           <>
+            {user.role === 'admin' && (
+              <Link to="/admin">
+                <Button variant="nav-secondary" className="text-accent-violet border-accent-violet/30 flex items-center gap-1 text-xs">
+                  <ShieldCheck size={14} /> Admin
+                </Button>
+              </Link>
+            )}
+
+            {user.role === 'creator' && (
+              <Link to="/creator">
+                <Button variant="nav-secondary" className="flex items-center gap-1 text-xs">
+                  Creator Hub
+                </Button>
+              </Link>
+            )}
+
+            <Link to="/notifications" className="relative p-2 text-text-secondary hover:text-text-ink transition-colors">
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-accent-violet rounded-full"></span>
+              )}
+            </Link>
+
             <Link to="/profile">
               <Button variant="nav-secondary" className="flex items-center gap-1.5 px-3">
                 <img
@@ -69,10 +99,12 @@ export function Navbar() {
                 <span className="hidden sm:inline text-xs font-bold">{user.name?.split(' ')[0]}</span>
               </Button>
             </Link>
+
             <Link to="/dashboard">
               <Button variant="nav-secondary">Dashboard</Button>
             </Link>
-            <Button variant="nav-primary" onClick={handleLogout}>
+
+            <Button variant="nav-primary" onClick={handleLogoutClick}>
               Sign Out
             </Button>
           </>

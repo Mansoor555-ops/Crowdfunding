@@ -5,7 +5,8 @@ const {
   handleStripeWebhook, 
   getMyDonations,
   confirmMockPayment,
-  getCampaignDonations
+  getCampaignDonations,
+  getReceipt
 } = require('../controllers/donationController');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 
@@ -14,5 +15,6 @@ router.post('/webhook', handleStripeWebhook);
 router.get('/my-donations', requireAuth, getMyDonations);
 router.post('/mock-confirm', confirmMockPayment);
 router.get('/campaign/:id', getCampaignDonations);
+router.get('/receipt/:id', requireAuth, getReceipt);
 
 module.exports = router;

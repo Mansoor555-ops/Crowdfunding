@@ -9,12 +9,13 @@ const DonationSchema = new mongoose.Schema({
   donor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null // null indicates guest/unauthenticated or anonymous donation
+    default: null
   },
   campaign: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Campaign',
-    required: [true, 'Campaign reference is required']
+    required: [true, 'Campaign reference is required'],
+    index: true
   },
   isAnonymous: {
     type: Boolean,
@@ -22,13 +23,18 @@ const DonationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'succeeded', 'failed'],
+    enum: ['pending', 'succeeded', 'failed', 'refunded'],
     default: 'pending'
   },
   paymentIntentId: {
     type: String,
     unique: true,
-    sparse: true // Allows multiple pending donations to not have a paymentIntentId yet
+    sparse: true
+  },
+  receiptNumber: {
+    type: String,
+    unique: true,
+    sparse: true
   },
   rewardTier: {
     type: String,
