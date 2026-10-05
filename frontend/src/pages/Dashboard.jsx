@@ -1,417 +1,252 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
-import { Card } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { PlusCircle, Wallet, ArrowUpRight, Check, AlertCircle, TrendingUp } from 'lucide-react'
+import { Stat, DataTable } from '../components/ui/DataTable'
+import { Tabs } from '../components/ui/Tabs'
+import { CampaignCard } from '../components/ui/CampaignCard'
+import { Modal } from '../components/ui/Modal'
+import { Skeleton, EmptyState } from '../components/ui/Progress'
+import { Badge } from '../components/ui/Badge'
+import { api } from '../services/api'
+import { Heart, Bookmark, Receipt, ShieldCheck, ArrowUpRight, FileText, Download } from 'lucide-react'
 
 export default function Dashboard() {
-  const { user, authFetch } = useContext(AuthContext)
+  const { user } = useContext(AuthContext)
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login')
-    }
+    if (!user) navigate('/login')
   }, [user, navigate])
 
-  const [activeTab, setActiveTab] = useState(user?.role === 'creator' ? 'creator' : 'backer')
-  
-  // Data States
-  const [myCampaigns, setMyCampaigns] = useState([])
-  const [myDonations, setMyDonations] = useState([])
+  const [activeTab, setActiveTab] = useState('backed')
+  const [donations, setDonations] = useState([])
+  const [bookmarks, setBookmarks] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Withdrawal States
-  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
-  const [withdrawAmount, setWithdrawAmount] = useState('')
-  const [withdrawalState, setWithdrawalState] = useState('input') // 'input' | 'pending' | 'success'
-  const [withdrawError, setWithdrawError] = useState('')
+  // Receipt Modal
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false)
+  const [selectedReceipt, setSelectedReceipt] = useState(null)
 
   useEffect(() => {
-    if (user) {
-      fetchDashboardData()
+    async function loadBackerData() {
+      setLoading(true)
+      try {
+        const [donRes, bmRes] = await Promise.all([
+          api.get('/donations/my-donations').catch(() => ({ donations: [] })),
+          api.get('/campaigns/bookmarks/my-bookmarks').catch(() => ({ bookmarks: [] }))
+        ])
+
+        setDonations(donRes.donations || [])
+        setBookmarks(bmRes.bookmarks || [])
+      } catch (err) {
+        console.error('Backer dashboard load error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
+    if (user) loadBackerData()
   }, [user])
 
-  const fetchDashboardData = async () => {
-    setLoading(true)
-    try {
-      // 1. Fetch campaigns created by user
-      const campRes = await authFetch(`/api/campaigns?creator=${user.id || user._id}&status=all`)
-      const campData = await campRes.json()
-      if (campRes.ok) {
-        setMyCampaigns(campData.campaigns || [])
-      }
+  const totalContributed = donations.reduce((acc, d) => acc + (d.amount || 0), 0)
+  const uniqueCampaignsBacked = new Set(donations.map((d) => d.campaign?._id)).size
 
-      // 2. Fetch donations made by user
-      const donRes = await authFetch('/api/donations/my-donations')
-      const donData = await donRes.json()
-      if (donRes.ok) {
-        setMyDonations(donData.donations || [])
-      }
-    } catch (err) {
-      console.error('Error fetching dashboard details:', err)
-    } finally {
-      setLoading(false)
-    }
+  const handleOpenReceipt = (donation) => {
+    setSelectedReceipt(donation)
+    setReceiptModalOpen(true)
   }
 
-  // Calculate totals
-  const totalRaised = myCampaigns.reduce((acc, curr) => acc + curr.amountRaised, 0)
-  const totalBacked = myDonations.reduce((acc, curr) => acc + curr.amount, 0)
-  const totalBackers = myCampaigns.reduce((acc, curr) => acc + curr.backersCount, 0)
-
-  // Recharts mock timeline data - accumulation of funds raised
-  const chartData = [
-    { name: 'Week 1', amount: totalRaised * 0.1 },
-    { name: 'Week 2', amount: totalRaised * 0.25 },
-    { name: 'Week 3', amount: totalRaised * 0.45 },
-    { name: 'Week 4', amount: totalRaised * 0.7 },
-    { name: 'Week 5', amount: totalRaised }
+  const donationColumns = [
+    {
+      header: 'Campaign Title',
+      accessorKey: 'campaign',
+      cell: (row) => (
+        <Link to={`/campaigns/${row.campaign?.slug}`} className="font-bold text-text-ink hover:text-accent-violet transition-colors">
+          {row.campaign?.title || 'FundRise Campaign'}
+        </Link>
+      )
+    },
+    {
+      header: 'Amount',
+      accessorKey: 'amount',
+      cell: (row) => <span className="font-bold text-emerald-600">${row.amount}</span>
+    },
+    {
+      header: 'Date',
+      accessorKey: 'createdAt',
+      cell: (row) => new Date(row.createdAt).toLocaleDateString()
+    },
+    {
+      header: 'Receipt #',
+      accessorKey: 'receiptNumber',
+      cell: (row) => <span className="font-mono text-xs text-text-secondary">{row.receiptNumber || 'FR-OFFICIAL'}</span>
+    },
+    {
+      header: 'Actions',
+      cell: (row) => (
+        <button
+          onClick={() => handleOpenReceipt(row)}
+          className="px-3 py-1 bg-black/5 hover:bg-black/10 rounded-full text-xs font-semibold text-text-ink flex items-center gap-1"
+        >
+          <Receipt className="w-3.5 h-3.5 text-accent-violet" /> View Receipt
+        </button>
+      )
+    }
   ]
 
-  const handleWithdrawalRequest = (e) => {
-    e.preventDefault()
-    setWithdrawError('')
-
-    const val = parseFloat(withdrawAmount)
-    if (!val || val <= 0) {
-      setWithdrawError('Withdrawal amount must be greater than zero')
-      return
-    }
-    if (val > totalRaised) {
-      setWithdrawError(`Insufficient funds. Max withdrawable is $${totalRaised.toLocaleString()}`)
-      return
-    }
-
-    setWithdrawalState('pending')
-    
-    // Simulate approval delay
-    setTimeout(() => {
-      setWithdrawalState('success')
-    }, 2000)
-  }
-
-  if (!user) return null
-
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-24 space-y-12">
-      
-      {/* User greeting header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 pb-6 border-b border-text-ink/10">
-        <div className="space-y-1">
-          <span className="text-[12px] font-bold text-accent-violet tracking-widest uppercase">Creator Workspace</span>
-          <h1 className="headline-display text-3xl md:text-5xl font-bold tracking-tight text-text-ink">
-            Hello, {user.name}
-          </h1>
-          <p className="text-text-secondary text-sm md:text-base font-body">
-            Manage your campaigns, track transactions, and withdraw funds.
-          </p>
+    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-7xl mx-auto">
+      {/* Dashboard Top Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wider text-accent-violet block mb-1">
+            Backer Command Center
+          </span>
+          <h1 className="text-3xl font-display font-bold text-text-ink">Welcome back, {user?.name}</h1>
         </div>
-
-        {/* Tab switchers */}
-        <div className="flex bg-bg-linen border border-text-ink/10 p-1.5 rounded-full self-stretch sm:self-auto justify-around">
-          <button
-            onClick={() => setActiveTab('creator')}
-            className={`px-6 py-2.5 text-xs font-bold rounded-full transition-all ${
-              activeTab === 'creator'
-                ? 'bg-text-ink text-surface-white'
-                : 'text-text-secondary hover:text-text-ink'
-            }`}
-          >
-            Campaign Creator
-          </button>
-          <button
-            onClick={() => setActiveTab('backer')}
-            className={`px-6 py-2.5 text-xs font-bold rounded-full transition-all ${
-              activeTab === 'backer'
-                ? 'bg-text-ink text-surface-white'
-                : 'text-text-secondary hover:text-text-ink'
-            }`}
-          >
-            Backer Activity
-          </button>
+        <div className="flex gap-3">
+          <Link to="/discover" className="px-5 py-2.5 bg-text-ink text-white rounded-full text-xs font-bold hover:opacity-90">
+            Explore Campaigns
+          </Link>
+          {(user?.role === 'creator' || user?.role === 'admin') && (
+            <Link to="/creator" className="px-5 py-2.5 bg-accent-violet/10 text-accent-violet rounded-full text-xs font-bold hover:bg-accent-violet/20">
+              Creator Hub
+            </Link>
+          )}
         </div>
       </div>
 
+      {/* Overview Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <Stat title="Total Pledged" value={`$${totalContributed.toLocaleString()}`} icon={Heart} />
+        <Stat title="Campaigns Backed" value={uniqueCampaignsBacked.toString()} icon={ShieldCheck} />
+        <Stat title="Saved Bookmarks" value={bookmarks.length.toString()} icon={Bookmark} />
+      </div>
+
+      {/* Tabs Filter */}
+      <div className="mb-8">
+        <Tabs
+          tabs={[
+            { id: 'backed', label: `Backed Campaigns (${uniqueCampaignsBacked})` },
+            { id: 'bookmarks', label: `Bookmarks (${bookmarks.length})` },
+            { id: 'donations', label: `Donation History (${donations.length})` }
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
+
+      {/* Tab Panels */}
       {loading ? (
-        <div className="text-center py-20 text-text-secondary font-medium">
-          Loading workspace details...
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-64 rounded-3xl" />
+          <Skeleton className="h-64 rounded-3xl" />
+          <Skeleton className="h-64 rounded-3xl" />
         </div>
       ) : (
         <>
-          {/* TAB 1: CREATOR VIEW */}
-          {activeTab === 'creator' && (
-            <div className="space-y-10">
-              {/* Metrics Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                
-                <Card variant="app-panel" className="p-8 space-y-2 relative border border-text-ink/10">
-                  <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Withdrawable Funds</span>
-                  <p className="font-display text-4xl font-extrabold text-text-ink">${totalRaised.toLocaleString()}</p>
-                  <Button 
-                    onClick={() => {
-                      setWithdrawAmount('')
-                      setWithdrawalState('input')
-                      setWithdrawModalOpen(true)
-                    }} 
-                    variant="nav-secondary" 
-                    className="mt-4 flex items-center gap-1.5"
-                  >
-                    <Wallet size={14} /> Request Payout
-                  </Button>
-                </Card>
-
-                <Card variant="app-panel" className="p-8 space-y-2 border border-text-ink/10">
-                  <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Overall Backers</span>
-                  <p className="font-display text-4xl font-extrabold text-text-ink">{totalBackers}</p>
-                  <span className="text-xs text-emerald-600 font-semibold block mt-4 flex items-center gap-1">
-                    <TrendingUp size={14} /> +{totalBackers > 0 ? Math.ceil(totalBackers * 0.1) : 0} new this week
-                  </span>
-                </Card>
-
-                <Card variant="gradient-feature" className="p-8 space-y-2 flex flex-col justify-between min-h-[160px]">
-                  <div>
-                    <span className="text-[11px] font-bold text-accent-peach uppercase tracking-wider">Funding Target Status</span>
-                    <p className="font-display text-3xl font-extrabold text-surface-white mt-1">Goal Reached</p>
-                  </div>
-                  <span className="text-xs text-surface-white/70">
-                    Live Escrow Accounts Audit Active
-                  </span>
-                </Card>
-
-              </div>
-
-              {/* Chart & Campaigns list */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* Recharts Analytics Line Chart left */}
-                <div className="lg:col-span-7 space-y-4">
-                  <h2 className="font-display text-xl font-bold tracking-tight text-text-ink">Donation Velocity</h2>
-                  <Card variant="app-panel" className="p-6 h-[340px] border border-text-ink/10">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1A182B" opacity={0.05} />
-                        <XAxis dataKey="name" stroke="#716F7E" fontSize={11} tickLine={false} />
-                        <YAxis stroke="#716F7E" fontSize={11} tickLine={false} />
-                        <Tooltip />
-                        <Line 
-                          type="monotone" 
-                          dataKey="amount" 
-                          stroke="#6E47FF" 
-                          strokeWidth={3} 
-                          activeDot={{ r: 8, fill: '#FFBB98' }} 
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Card>
+          {activeTab === 'backed' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {donations.length > 0 ? (
+                donations
+                  .filter((d, idx, self) => self.findIndex((t) => t.campaign?._id === d.campaign?._id) === idx)
+                  .map((d) => d.campaign && <CampaignCard key={d.campaign._id} campaign={d.campaign} />)
+              ) : (
+                <div className="col-span-3">
+                  <EmptyState
+                    title="No backed campaigns yet"
+                    description="You haven't backed any campaigns so far. Explore active projects and support creators!"
+                    action={
+                      <Link to="/discover" className="px-6 py-2.5 bg-text-ink text-white text-xs font-bold rounded-full">
+                        Discover Campaigns
+                      </Link>
+                    }
+                  />
                 </div>
-
-                {/* My Campaigns list right */}
-                <div className="lg:col-span-5 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h2 className="font-display text-xl font-bold tracking-tight text-text-ink">My Campaigns</h2>
-                    <Link to="/campaigns/new">
-                      <Button variant="nav-secondary" className="flex items-center gap-1">
-                        <PlusCircle size={14} /> Launch
-                      </Button>
-                    </Link>
-                  </div>
-
-                  <Card variant="faq" className="p-0 border border-text-ink/10 divide-y divide-text-ink/5">
-                    {myCampaigns.length === 0 ? (
-                      <div className="p-8 text-center text-sm text-text-secondary font-medium">
-                        You haven't created any campaigns yet.
-                      </div>
-                    ) : (
-                      myCampaigns.map((camp) => (
-                        <div key={camp._id} className="p-4 flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <img 
-                              src={camp.coverImage} 
-                              alt={camp.title} 
-                              className="w-12 h-12 rounded-xl object-cover border border-text-ink/5"
-                            />
-                            <div className="text-left">
-                              <h4 className="text-sm font-bold text-text-ink line-clamp-1">
-                                <Link to={`/campaigns/${camp.slug}`} className="hover:underline">{camp.title}</Link>
-                              </h4>
-                              <p className="text-xs text-text-secondary">
-                                ${camp.amountRaised.toLocaleString()} raised
-                              </p>
-                            </div>
-                          </div>
-                          <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase ${
-                            camp.status === 'active' || camp.status === 'funded'
-                              ? 'bg-emerald-50 text-emerald-600'
-                              : 'bg-red-50 text-red-500'
-                          }`}>
-                            {camp.status}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </Card>
-                </div>
-
-              </div>
+              )}
             </div>
           )}
 
-          {/* TAB 2: BACKER VIEW */}
-          {activeTab === 'backer' && (
-            <div className="space-y-8 max-w-[800px] mx-auto">
-              <h2 className="font-display text-xl font-bold tracking-tight text-text-ink text-left">
-                My Backed Campaigns
-              </h2>
-
-              <Card variant="faq" className="p-0 border border-text-ink/10 overflow-hidden divide-y divide-text-ink/5">
-                {myDonations.length === 0 ? (
-                  <div className="p-12 text-center text-sm text-text-secondary font-medium">
-                    You haven't backed any campaigns yet. Visit discovery page to support.
-                  </div>
-                ) : (
-                  myDonations.map((don) => (
-                    <div key={don._id} className="p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-left">
-                      <div className="flex items-center gap-4">
-                        <img 
-                          src={don.campaign?.coverImage} 
-                          alt={don.campaign?.title} 
-                          className="w-16 h-16 rounded-2xl object-cover border border-text-ink/10"
-                        />
-                        <div className="space-y-1">
-                          <h4 className="font-display text-lg font-bold text-text-ink leading-tight hover:text-accent-violet transition-colors">
-                            <Link to={`/campaigns/${don.campaign?.slug}`}>{don.campaign?.title}</Link>
-                          </h4>
-                          <span className="text-xs text-text-secondary">
-                            Contributed on {new Date(don.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 justify-between sm:justify-end">
-                        <div className="text-right">
-                          <span className="text-xs text-text-muted uppercase tracking-wider block">Backed Amount</span>
-                          <span className="font-display font-extrabold text-accent-violet text-lg">${don.amount}</span>
-                        </div>
-                        <span className="bg-emerald-50 text-emerald-600 text-xs px-3.5 py-1.5 rounded-full font-bold">
-                          Receipt Signed
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </Card>
+          {activeTab === 'bookmarks' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {bookmarks.length > 0 ? (
+                bookmarks.map((campaign) => (
+                  <CampaignCard
+                    key={campaign._id}
+                    campaign={campaign}
+                    isBookmarkedInitial={true}
+                    onBookmarkToggle={(id, bookmarked) => {
+                      if (!bookmarked) setBookmarks(bookmarks.filter((b) => b._id !== id))
+                    }}
+                  />
+                ))
+              ) : (
+                <div className="col-span-3">
+                  <EmptyState
+                    title="No bookmarks saved"
+                    description="Click the bookmark icon on any campaign card to save it for later review."
+                  />
+                </div>
+              )}
             </div>
+          )}
+
+          {activeTab === 'donations' && (
+            <DataTable columns={donationColumns} data={donations} emptyMessage="No donation transactions on record." />
           )}
         </>
       )}
 
-      {/* 4. WITHDRAWAL POPUP OVERLAY */}
-      {withdrawModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-text-ink/65 backdrop-blur-[4px]">
-          <Card variant="app-panel" className="w-full max-w-[480px] p-8 space-y-6 relative border border-text-ink/15 shadow-xl animate-scale-up">
-            
-            <button 
-              onClick={() => setWithdrawModalOpen(false)}
-              className="absolute top-4 right-4 text-text-secondary hover:text-text-ink font-semibold"
-              disabled={withdrawalState === 'pending'}
-            >
-              Close
-            </button>
+      {/* Official Receipt Viewer Modal */}
+      <Modal isOpen={receiptModalOpen} onClose={() => setReceiptModalOpen(false)} title="Official Donation Receipt">
+        {selectedReceipt && (
+          <div className="space-y-6 p-2">
+            <div className="text-center pb-6 border-b border-border-ink/10">
+              <span className="font-display text-2xl font-bold text-text-ink">
+                FundRise<span className="text-accent-violet">.</span>
+              </span>
+              <p className="text-xs text-text-muted mt-1">Official Crowdfunding Tax & Transaction Receipt</p>
+            </div>
 
-            {withdrawalState === 'input' && (
-              <form onSubmit={handleWithdrawalRequest} className="space-y-5">
-                <div className="text-center space-y-1">
-                  <span className="text-xs font-bold text-accent-violet tracking-wider uppercase">Escrow Settlement</span>
-                  <h3 className="font-display text-xl font-bold text-text-ink">Request Fund Payout</h3>
-                </div>
-
-                {withdrawError && (
-                  <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
-                    <span className="text-sm font-medium text-red-700">{withdrawError}</span>
-                  </div>
-                )}
-
-                <div className="space-y-1.5 text-left">
-                  <label className="block text-sm font-semibold text-text-ink">
-                    Withdrawal Amount (USD)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet text-[15px] font-medium text-text-ink"
-                    placeholder={`Max withdrawable: $${totalRaised}`}
-                  />
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label className="block text-sm font-semibold text-text-ink">
-                    Payout Destination Account
-                  </label>
-                  <select className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet text-sm font-semibold text-text-ink">
-                    <option>Stripe Connected Account (*9941)</option>
-                    <option>Standard Checking Account (*8832)</option>
-                  </select>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  className="w-full h-[52px]"
-                >
-                  Verify Escrow & Withdraw
-                </Button>
-              </form>
-            )}
-
-            {withdrawalState === 'pending' && (
-              <div className="space-y-6 text-center py-6">
-                <div className="animate-spin text-accent-violet inline-block w-8 h-8 border-4 border-current border-t-transparent rounded-full"></div>
-                <div className="space-y-2">
-                  <h3 className="font-display text-xl font-bold text-text-ink">Requesting Escrow Verification...</h3>
-                  <p className="text-sm text-text-secondary max-w-[320px] mx-auto font-body">
-                    Our compliance layer is validating transaction signatures and backer ledgers.
-                  </p>
-                </div>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="text-text-muted font-medium block">Receipt Number</span>
+                <span className="font-mono font-bold text-text-ink">{selectedReceipt.receiptNumber || 'FR-OFFICIAL-1002'}</span>
               </div>
-            )}
-
-            {withdrawalState === 'success' && (
-              <div className="space-y-6 text-center py-6">
-                <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
-                  <Check size={32} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-display text-2xl font-bold text-text-ink">Withdrawal Approved</h3>
-                  <p className="text-sm text-text-secondary max-w-[320px] mx-auto font-body">
-                    Mock payout of <span className="font-bold text-accent-violet">${withdrawAmount}</span> was processed successfully and settled to your connected account.
-                  </p>
-                </div>
-                <Button 
-                  onClick={() => {
-                    setWithdrawModalOpen(false)
-                    setWithdrawalState('input')
-                    fetchDashboardData()
-                  }} 
-                  variant="primary" 
-                  className="w-full"
-                >
-                  Close
-                </Button>
+              <div>
+                <span className="text-text-muted font-medium block">Date & Time</span>
+                <span className="font-bold text-text-ink">{new Date(selectedReceipt.createdAt).toLocaleString()}</span>
               </div>
-            )}
+              <div>
+                <span className="text-text-muted font-medium block">Donor Name</span>
+                <span className="font-bold text-text-ink">{selectedReceipt.isAnonymous ? 'Anonymous Backer' : user?.name}</span>
+              </div>
+              <div>
+                <span className="text-text-muted font-medium block">Pledge Status</span>
+                <span className="font-bold text-emerald-600 uppercase">Succeeded</span>
+              </div>
+            </div>
 
-          </Card>
-        </div>
-      )}
+            <div className="p-4 bg-black/[0.02] rounded-2xl border border-border-ink/10 space-y-2">
+              <span className="text-xs text-text-muted font-medium block">Campaign Title</span>
+              <div className="font-display font-bold text-text-ink text-base">{selectedReceipt.campaign?.title}</div>
+            </div>
 
+            <div className="flex items-center justify-between p-4 bg-accent-violet/10 rounded-2xl border border-accent-violet/20">
+              <span className="font-display font-bold text-text-ink text-sm">Total Contribution</span>
+              <span className="font-display font-bold text-accent-violet text-2xl">${selectedReceipt.amount} USD</span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => window.print()}
+                className="px-5 py-2.5 bg-text-ink text-white rounded-full text-xs font-bold flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Print / Save PDF
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

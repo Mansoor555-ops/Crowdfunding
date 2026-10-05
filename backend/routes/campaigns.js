@@ -11,7 +11,8 @@ const {
   getCampaignComments,
   addCampaignComment,
   toggleBookmark,
-  getUserBookmarks
+  getUserBookmarks,
+  reportCampaign
 } = require('../controllers/campaignController');
 const { requireAuth } = require('../middleware/auth');
 
@@ -30,5 +31,6 @@ router.get('/:id/comments', getCampaignComments);
 router.post('/:id/comments', requireAuth, addCampaignComment);
 
 router.post('/:id/bookmark', requireAuth, toggleBookmark);
+router.post('/:id/report', requireAuth, reportCampaign);
 
 module.exports = router;

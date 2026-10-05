@@ -1,294 +1,388 @@
-import React, { useState, useContext, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { ShieldAlert, FileText, DollarSign, Image } from 'lucide-react'
+import { Input, Textarea, Select, CurrencyInput } from '../components/ui/Input'
+import { ImageUploader, GalleryUploader } from '../components/ui/ImageUploader'
+import { CampaignCard } from '../components/ui/CampaignCard'
+import { api } from '../services/api'
+import { Check, Plus, Trash2, ArrowLeft, ArrowRight, Save, Sparkles, ShieldCheck } from 'lucide-react'
 
 export default function CreateCampaign() {
-  const { user, authFetch } = useContext(AuthContext)
+  const { user } = useContext(AuthContext)
   const navigate = useNavigate()
 
-  // Redirect if not logged in
   useEffect(() => {
-    if (!user) {
-      navigate('/login')
-    }
+    if (!user) navigate('/login')
   }, [user, navigate])
 
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState('Draft')
 
-  // Form State
+  // Campaign State
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
   const [category, setCategory] = useState('Tech')
-  const [fundingGoal, setFundingGoal] = useState('')
-  const [deadline, setDeadline] = useState('')
+  const [description, setDescription] = useState('')
+  const [fundingGoal, setFundingGoal] = useState('10000')
+  const [deadline, setDeadline] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    return d.toISOString().slice(0, 10)
+  })
   const [coverImage, setCoverImage] = useState('')
-  const [gallery, setGallery] = useState('')
+  const [gallery, setGallery] = useState([])
+  const [rewardTiers, setRewardTiers] = useState([
+    { title: 'Early Bird Backer', description: 'Exclusive early backer access and digital updates.', minimumAmount: '25', estimatedDelivery: 'Dec 2026' }
+  ])
 
-  const nextStep = () => {
-    // Basic validations per step
-    if (step === 1) {
-      if (title.length < 5) {
-        setError('Title must be at least 5 characters long')
-        return
-      }
-      if (description.length < 20) {
-        setError('Description must be at least 20 characters long')
-        return
-      }
-    } else if (step === 2) {
-      if (!fundingGoal || parseFloat(fundingGoal) <= 0) {
-        setError('Funding goal must be a positive number')
-        return
-      }
-      if (!deadline || new Date(deadline) <= new Date()) {
-        setError('Deadline must be in the future')
-        return
-      }
+  // Load saved draft from localStorage
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('fundrise_campaign_draft')
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft)
+        if (draft.title) setTitle(draft.title)
+        if (draft.category) setCategory(draft.category)
+        if (draft.description) setDescription(draft.description)
+        if (draft.fundingGoal) setFundingGoal(draft.fundingGoal)
+        if (draft.coverImage) setCoverImage(draft.coverImage)
+        if (draft.gallery) setGallery(draft.gallery)
+        if (draft.rewardTiers) setRewardTiers(draft.rewardTiers)
+      } catch (e) {}
     }
+  }, [])
+
+  // Auto-save draft on changes
+  useEffect(() => {
+    if (title || description || coverImage) {
+      setAutosaveStatus('Saving...')
+      const timer = setTimeout(() => {
+        localStorage.setItem(
+          'fundrise_campaign_draft',
+          JSON.stringify({ title, category, description, fundingGoal, deadline, coverImage, gallery, rewardTiers })
+        )
+        setAutosaveStatus('Saved')
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [title, category, description, fundingGoal, deadline, coverImage, gallery, rewardTiers])
+
+  const addRewardTier = () => {
+    setRewardTiers([
+      ...rewardTiers,
+      { title: '', description: '', minimumAmount: '50', estimatedDelivery: '' }
+    ])
+  }
+
+  const removeRewardTier = (index) => {
+    setRewardTiers(rewardTiers.filter((_, idx) => idx !== index))
+  }
+
+  const updateRewardTier = (index, field, value) => {
+    const updated = [...rewardTiers]
+    updated[index][field] = value
+    setRewardTiers(updated)
+  }
+
+  const handleNext = () => {
     setError('')
+    if (step === 1) {
+      if (title.length < 5) return setError('Title must be at least 5 characters.')
+    } else if (step === 2) {
+      if (description.length < 20) return setError('Story description must be at least 20 characters.')
+    } else if (step === 3) {
+      if (!fundingGoal || parseFloat(fundingGoal) < 1) return setError('Funding goal must be at least $1.')
+      if (!deadline) return setError('Please specify a valid deadline.')
+    } else if (step === 5) {
+      if (!coverImage) return setError('Please upload a cover image.')
+    }
     setStep(step + 1)
   }
 
-  const prevStep = () => {
+  const handlePrev = () => {
     setError('')
     setStep(step - 1)
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (isDraft = false) => {
     setError('')
     setLoading(true)
 
-    // Final checks
-    if (!coverImage.startsWith('http')) {
-      setError('Cover Image must be a valid URL starting with http/https')
-      setLoading(false)
-      return
-    }
-
-    const galleryArray = gallery
-      ? gallery.split(',').map((url) => url.trim()).filter((url) => url.startsWith('http'))
-      : []
-
     try {
-      const res = await authFetch('/api/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          category,
-          fundingGoal: parseFloat(fundingGoal),
-          deadline,
-          coverImage,
-          gallery: galleryArray
-        })
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create campaign')
+      const payload = {
+        title,
+        category,
+        description,
+        fundingGoal: parseFloat(fundingGoal),
+        deadline,
+        coverImage: coverImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+        gallery,
+        rewardTiers: rewardTiers.map(r => ({
+          ...r,
+          minimumAmount: parseFloat(r.minimumAmount || '1')
+        })),
+        status: isDraft ? 'draft' : 'pending_review'
       }
 
-      navigate(`/campaigns/${data.campaign.slug}`)
+      const res = await api.post('/campaigns', payload)
+      localStorage.removeItem('fundrise_campaign_draft')
+      alert(isDraft ? 'Draft saved successfully!' : 'Campaign submitted successfully for admin review!')
+      navigate(`/campaigns/${res.campaign.slug}`)
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Failed to save campaign.')
+    } finally {
       setLoading(false)
     }
   }
 
-  if (!user) return null
+  const stepsList = [
+    { num: 1, label: 'Basics' },
+    { num: 2, label: 'Story' },
+    { num: 3, label: 'Funding' },
+    { num: 4, label: 'Rewards' },
+    { num: 5, label: 'Media' },
+    { num: 6, label: 'Preview' },
+    { num: 7, label: 'Submit' }
+  ]
+
+  const mockPreviewCampaign = {
+    _id: 'preview',
+    title: title || 'Untitled Campaign',
+    slug: 'preview',
+    category,
+    description: description || 'No story details entered yet.',
+    fundingGoal: parseFloat(fundingGoal || '10000'),
+    amountRaised: 0,
+    backersCount: 0,
+    deadline: deadline || new Date().toISOString(),
+    coverImage: coverImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+    creator: { name: user?.name || 'Creator', avatar: user?.avatar },
+    status: 'draft'
+  }
 
   return (
-    <div className="min-h-screen bg-bg-linen flex items-center justify-center px-6 py-24">
-      <Card variant="app-panel" className="w-full max-w-[600px] p-8 md:p-12 border border-text-ink/10">
-        
-        {/* Step Indicator Header */}
-        <div className="flex justify-between items-center pb-6 border-b border-text-ink/5 mb-8">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-accent-violet tracking-widest uppercase">Start a Campaign</span>
-            <h2 className="font-display text-xl font-bold tracking-tight text-text-ink">Launch your Project</h2>
-          </div>
-          <div className="flex gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${step >= 1 ? 'bg-accent-violet' : 'bg-text-ink/10'}`}></span>
-            <span className={`w-2.5 h-2.5 rounded-full ${step >= 2 ? 'bg-accent-violet' : 'bg-text-ink/10'}`}></span>
-            <span className={`w-2.5 h-2.5 rounded-full ${step >= 3 ? 'bg-accent-violet' : 'bg-text-ink/10'}`}></span>
-          </div>
+    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-4xl mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-6 border-b border-border-ink/10 gap-4">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wider text-accent-violet block">
+            Campaign Creator Wizard
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-text-ink">Launch Your Campaign</h1>
         </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-text-muted bg-surface-white px-3 py-1.5 rounded-full border border-border-ink/10">
+          <Save className="w-3.5 h-3.5 text-accent-violet" /> Autosave: {autosaveStatus}
+        </div>
+      </div>
 
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-start gap-3 mb-6">
-            <ShieldAlert className="text-red-500 shrink-0 mt-0.5" size={16} />
-            <span className="text-sm font-medium text-red-700">{error}</span>
+      {/* Progress Steps Header */}
+      <div className="flex items-center justify-between mb-10 overflow-x-auto pb-4 no-scrollbar">
+        {stepsList.map((s) => (
+          <div key={s.num} className="flex items-center gap-2">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                s.num === step
+                  ? 'bg-text-ink text-white shadow-md'
+                  : s.num < step
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-black/5 text-text-muted'
+              }`}
+            >
+              {s.num < step ? <Check className="w-4 h-4" /> : s.num}
+            </div>
+            <span className={`text-xs font-semibold whitespace-nowrap ${s.num === step ? 'text-text-ink' : 'text-text-muted'}`}>
+              {s.label}
+            </span>
+            {s.num < 7 && <div className="w-6 h-px bg-border-ink/10 hidden sm:block" />}
           </div>
-        )}
+        ))}
+      </div>
 
-        {/* STEP 1: Basic Campaign Details */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs font-medium text-red-700 mb-6">
+          {error}
+        </div>
+      )}
+
+      {/* Wizard Form Panels */}
+      <div className="bg-surface-white p-8 sm:p-10 rounded-3xl border border-border-ink/10 shadow-sm mb-8">
         {step === 1 && (
           <div className="space-y-6">
-            <div className="flex items-center gap-2 text-text-ink mb-2">
-              <FileText size={18} className="text-accent-violet" />
-              <span className="text-sm font-bold uppercase tracking-wider text-text-secondary">Step 1: Campaign details</span>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="title">
-                Campaign Title
-              </label>
-              <input
-                id="title"
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-                placeholder="e.g. Linen & Ink: A Minimalist Editorial Magazine"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="category">
-                Campaign Category
-              </label>
-              <select
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-              >
-                <option value="Tech">Technology</option>
-                <option value="Creative">Creative / Art</option>
-                <option value="Community">Community</option>
-                <option value="Charity">Charity / NGO</option>
-                <option value="Education">Education</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="description">
-                Description & Story
-              </label>
-              <textarea
-                id="description"
-                rows={5}
-                required
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-                placeholder="Describe your project, funding purpose, and reward milestones..."
-              />
-            </div>
-
-            <Button onClick={nextStep} variant="primary" className="w-full">
-              Continue
-            </Button>
+            <h3 className="text-xl font-display font-bold text-text-ink">1. Project Basics</h3>
+            <Input
+              label="Campaign Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Orbital Key: Zero-Gravity EDC Carabiner"
+              required
+            />
+            <Select
+              label="Category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              options={['Tech', 'Creative', 'Community', 'Charity', 'Education', 'Health', 'Environment', 'Business']}
+            />
           </div>
         )}
 
-        {/* STEP 2: Financial targets & Timelines */}
         {step === 2 && (
           <div className="space-y-6">
-            <div className="flex items-center gap-2 text-text-ink mb-2">
-              <DollarSign size={18} className="text-accent-violet" />
-              <span className="text-sm font-bold uppercase tracking-wider text-text-secondary">Step 2: Financials & Deadline</span>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="goal">
-                Funding Goal (USD)
-              </label>
-              <input
-                id="goal"
-                type="number"
-                min={1}
-                required
-                value={fundingGoal}
-                onChange={(e) => setFundingGoal(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-                placeholder="e.g. 25000"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="deadline">
-                Campaign Deadline
-              </label>
-              <input
-                id="deadline"
-                type="date"
-                required
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Button onClick={prevStep} variant="secondary" type="button">
-                Back
-              </Button>
-              <Button onClick={nextStep} variant="primary" type="button">
-                Continue
-              </Button>
-            </div>
+            <h3 className="text-xl font-display font-bold text-text-ink">2. Campaign Story</h3>
+            <Textarea
+              label="Detailed Pitch & Story"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Explain why your campaign matters, budget details, timeline, and goals..."
+              rows={8}
+              required
+            />
           </div>
         )}
 
-        {/* STEP 3: Images & Publishing */}
         {step === 3 && (
           <div className="space-y-6">
-            <div className="flex items-center gap-2 text-text-ink mb-2">
-              <Image size={18} className="text-accent-violet" />
-              <span className="text-sm font-bold uppercase tracking-wider text-text-secondary">Step 3: Visual Assets</span>
+            <h3 className="text-xl font-display font-bold text-text-ink">3. Funding & Timeline</h3>
+            <CurrencyInput
+              label="Funding Goal (USD)"
+              value={fundingGoal}
+              onChange={(e) => setFundingGoal(e.target.value)}
+              required
+            />
+            <Input
+              label="Campaign Deadline Date"
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              required
+            />
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-display font-bold text-text-ink">4. Reward Tiers</h3>
+              <button
+                type="button"
+                onClick={addRewardTier}
+                className="px-4 py-2 bg-black/5 hover:bg-black/10 text-text-ink rounded-full text-xs font-bold flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Tier
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="cover">
-                Cover Image URL
-              </label>
-              <input
-                id="cover"
-                type="url"
-                required
-                value={coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-                placeholder="https://images.unsplash.com/photo-..."
-              />
-            </div>
+            {rewardTiers.map((reward, idx) => (
+              <div key={idx} className="p-6 bg-black/[0.02] rounded-2xl border border-border-ink/10 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-bold text-sm text-text-ink">Reward Tier #{idx + 1}</h4>
+                  {rewardTiers.length > 1 && (
+                    <button onClick={() => removeRewardTier(idx)} className="text-red-500 hover:text-red-700 text-xs">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <Input
+                  label="Tier Title"
+                  value={reward.title}
+                  onChange={(e) => updateRewardTier(idx, 'title', e.target.value)}
+                  placeholder="e.g. Early Bird Pass"
+                />
+                <Textarea
+                  label="Tier Description"
+                  value={reward.description}
+                  onChange={(e) => updateRewardTier(idx, 'description', e.target.value)}
+                  rows={2}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <CurrencyInput
+                    label="Minimum Amount"
+                    value={reward.minimumAmount}
+                    onChange={(e) => updateRewardTier(idx, 'minimumAmount', e.target.value)}
+                  />
+                  <Input
+                    label="Estimated Delivery"
+                    value={reward.estimatedDelivery}
+                    onChange={(e) => updateRewardTier(idx, 'estimatedDelivery', e.target.value)}
+                    placeholder="Dec 2026"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-text-ink" htmlFor="gallery">
-                Gallery Images URLs (comma-separated, optional)
-              </label>
-              <textarea
-                id="gallery"
-                rows={3}
-                value={gallery}
-                onChange={(e) => setGallery(e.target.value)}
-                className="w-full px-5 py-3.5 bg-bg-linen rounded-xl border border-text-ink/10 focus:outline-none focus:border-accent-violet focus:ring-1 focus:ring-accent-violet text-[15px] font-medium text-text-ink transition-colors"
-                placeholder="https://image1.com, https://image2.com"
-              />
-            </div>
+        {step === 5 && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-display font-bold text-text-ink">5. Media & Uploads</h3>
+            <ImageUploader label="Primary Cover Image" value={coverImage} onChange={setCoverImage} />
+            <GalleryUploader label="Additional Gallery Images" images={gallery} onChange={setGallery} />
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <Button onClick={prevStep} variant="secondary" type="button" disabled={loading}>
-                Back
-              </Button>
-              <Button onClick={handleSubmit} variant="primary" type="submit" disabled={loading}>
-                {loading ? 'Publishing...' : 'Launch Campaign'}
-              </Button>
+        {step === 6 && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-display font-bold text-text-ink">6. Preview Card</h3>
+            <p className="text-xs text-text-secondary">This is how your campaign will appear on the Discover marketplace:</p>
+            <div className="max-w-md mx-auto">
+              <CampaignCard campaign={mockPreviewCampaign} />
             </div>
           </div>
         )}
 
-      </Card>
+        {step === 7 && (
+          <div className="space-y-6 text-center py-6">
+            <div className="w-16 h-16 bg-accent-violet/10 text-accent-violet rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
+            <h3 className="text-2xl font-display font-bold text-text-ink">Ready for Submission</h3>
+            <p className="text-sm text-text-secondary max-w-md mx-auto">
+              Submit your campaign for platform review. Administrators will review content guidelines before making it active.
+            </p>
+
+            <div className="flex justify-center gap-4 pt-4">
+              <button
+                type="button"
+                onClick={() => handleSubmit(true)}
+                disabled={loading}
+                className="px-6 py-3 rounded-full border border-border-ink/20 text-xs font-bold text-text-ink hover:bg-black/5"
+              >
+                Save as Draft
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmit(false)}
+                disabled={loading}
+                className="px-8 py-3 bg-text-ink text-white rounded-full text-xs font-bold hover:opacity-90 disabled:opacity-50"
+              >
+                {loading ? 'Submitting...' : 'Submit for Review'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-between">
+        {step > 1 ? (
+          <button
+            onClick={handlePrev}
+            className="px-6 py-3 rounded-full border border-border-ink/20 text-xs font-bold text-text-ink flex items-center gap-2 hover:bg-black/5"
+          >
+            <ArrowLeft className="w-4 h-4" /> Previous
+          </button>
+        ) : <div />}
+
+        {step < 7 && (
+          <button
+            onClick={handleNext}
+            className="px-8 py-3 bg-text-ink text-white rounded-full text-xs font-bold flex items-center gap-2 hover:opacity-90"
+          >
+            Next <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

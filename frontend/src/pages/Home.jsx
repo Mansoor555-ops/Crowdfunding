@@ -1,537 +1,388 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
+import { CampaignCard } from '../components/ui/CampaignCard'
 import { Reveal } from '../components/ui/Reveal'
 import { AnimatedCounter } from '../components/ui/AnimatedCounter'
-import { Sparkles, Layers, ShieldCheck, Zap, ChevronDown, TrendingUp, Users, Award } from 'lucide-react'
+import { Skeleton } from '../components/ui/Progress'
+import { api } from '../services/api'
+import {
+  Sparkles,
+  ShieldCheck,
+  Zap,
+  TrendingUp,
+  Award,
+  Globe,
+  Lock,
+  ArrowRight,
+  Compass,
+  Heart,
+  Cpu,
+  Palette,
+  Users,
+  Building,
+  TreePine,
+  GraduationCap
+} from 'lucide-react'
 
 export default function Home() {
-  const [campaigns, setCampaigns] = useState([])
-  const [stats, setStats] = useState({ totalRaised: 92050, totalBackers: 633, totalCampaigns: 6, fundedCampaigns: 2 })
-  const [activeFaq, setActiveFaq] = useState(null)
+  const [featuredCampaigns, setFeaturedCampaigns] = useState([])
+  const [trendingCampaigns, setTrendingCampaigns] = useState([])
+  const [endingSoonCampaigns, setEndingSoonCampaigns] = useState([])
+  const [stats, setStats] = useState({ totalRaised: 0, totalBackers: 0, totalCampaigns: 0, fundedCampaigns: 0 })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch platform stats
-    fetch('/api/campaigns/stats')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.totalRaised !== undefined) {
-          setStats(data)
-        }
-      })
-      .catch(() => {})
-
-    // Fetch active campaigns from backend
-    fetch('/api/campaigns')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.campaigns && data.campaigns.length > 0) {
-          setCampaigns(data.campaigns.slice(0, 3))
-        } else {
-          // Fallback campaigns for rich layout representation
-          setCampaigns([
-            {
-              id: '1',
-              title: 'Orbital Key: The Zero-Gravity EDC Carabiner',
-              slug: 'orbital-key-carabiner',
-              category: 'Tech',
-              fundingGoal: 25000,
-              amountRaised: 18450,
-              backersCount: 142,
-              deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12).toISOString(),
-              coverImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800'
-            },
-            {
-              id: '2',
-              title: 'Linen & Ink: A Minimalist Editorial Magazine',
-              slug: 'linen-ink-magazine',
-              category: 'Creative',
-              fundingGoal: 8000,
-              amountRaised: 9400,
-              backersCount: 88,
-              deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6).toISOString(),
-              coverImage: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800'
-            },
-            {
-              id: '3',
-              title: 'The Clean Canopy: Urban Air Filter Installations',
-              slug: 'clean-canopy-filter',
-              category: 'Community',
-              fundingGoal: 45000,
-              amountRaised: 12200,
-              backersCount: 95,
-              deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 28).toISOString(),
-              coverImage: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&q=80&w=800'
-            }
-          ])
-        }
-      })
-      .catch(() => {
-        // Fallback on error
-        setCampaigns([
-          {
-            id: '1',
-            title: 'Orbital Key: The Zero-Gravity EDC Carabiner',
-            slug: 'orbital-key-carabiner',
-            category: 'Tech',
-            fundingGoal: 25000,
-            amountRaised: 18450,
-            backersCount: 142,
-            deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12).toISOString(),
-            coverImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800'
-          },
-          {
-            id: '2',
-            title: 'Linen & Ink: A Minimalist Editorial Magazine',
-            slug: 'linen-ink-magazine',
-            category: 'Creative',
-            fundingGoal: 8000,
-            amountRaised: 9400,
-            backersCount: 88,
-            deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6).toISOString(),
-            coverImage: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800'
-          },
-          {
-            id: '3',
-            title: 'The Clean Canopy: Urban Air Filter Installations',
-            slug: 'clean-canopy-filter',
-            category: 'Community',
-            fundingGoal: 45000,
-            amountRaised: 12200,
-            backersCount: 95,
-            deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 28).toISOString(),
-            coverImage: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&q=80&w=800'
-          }
+    async function loadData() {
+      try {
+        const [statsRes, featuredRes, trendingRes, endingRes] = await Promise.all([
+          api.get('/campaigns/stats').catch(() => ({})),
+          api.get('/campaigns?limit=3&sort=newest').catch(() => ({ campaigns: [] })),
+          api.get('/campaigns?limit=3&sort=trending').catch(() => ({ campaigns: [] })),
+          api.get('/campaigns?limit=3&sort=ending-soon').catch(() => ({ campaigns: [] }))
         ])
-      })
+
+        if (statsRes.totalRaised !== undefined) setStats(statsRes)
+        if (featuredRes.campaigns) setFeaturedCampaigns(featuredRes.campaigns)
+        if (trendingRes.campaigns) setTrendingCampaigns(trendingRes.campaigns)
+        if (endingRes.campaigns) setEndingSoonCampaigns(endingRes.campaigns)
+      } catch (err) {
+        console.error('Home page load error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
   }, [])
 
-  // Calculate days left
-  const getDaysLeft = (deadlineStr) => {
-    const diff = new Date(deadlineStr) - new Date()
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
-    return days > 0 ? days : 0
-  }
-
-  // Toggle FAQ accordion
-  const toggleFaq = (index) => {
-    setActiveFaq(activeFaq === index ? null : index)
-  }
-
-  const faqData = [
-    {
-      q: 'How does FundRise protect backers?',
-      a: 'We evaluate campaigns for trust benchmarks and secure all funding goals inside escrow accounts. Funds are only distributed to creators upon successful completion of funding goals.'
-    },
-    {
-      q: 'Can I donate anonymously?',
-      a: 'Yes, backer identities are secure. When creating a donation, simply check the "Donate Anonymously" option to keep your name hidden on the campaign page feed.'
-    },
-    {
-      q: 'Are there platform fees?',
-      a: 'We charge a flat 5% platform fee on successfully funded campaigns. If your campaign does not meet its target goal, all backers are automatically refunded with zero fee penalties.'
-    }
+  const categories = [
+    { name: 'Tech', icon: Cpu, count: 'Explore Innovations', desc: 'Hardware, software & gadgets' },
+    { name: 'Creative', icon: Palette, count: 'Art & Media', desc: 'Design, film, music & publishing' },
+    { name: 'Community', icon: Users, count: 'Local Initiatives', desc: 'Social impact & civic projects' },
+    { name: 'Charity', icon: Heart, count: 'Non-profit', desc: 'Direct assistance & global aid' },
+    { name: 'Education', icon: GraduationCap, count: 'Learning', desc: 'EdTech, books & scholarships' },
+    { name: 'Environment', icon: TreePine, count: 'Sustainability', desc: 'Clean tech & conservation' }
   ]
 
   return (
-    <div className="pt-[65px] overflow-hidden space-y-[112px] md:space-y-[112px]">
-      
-      {/* 1. HERO SECTION */}
-      <section className="max-w-[1280px] mx-auto px-6 pt-16 text-center space-y-10">
-        <Reveal className="space-y-6 max-w-[900px] mx-auto">
-          <span className="text-[12px] font-bold text-accent-violet tracking-widest uppercase bg-accent-violet/5 py-1.5 px-4 rounded-full">
-            INTRODUCING FUNDRISE
-          </span>
-          <h1 className="headline-display text-[50px] md:text-[80px] text-text-ink tracking-tight font-extrabold leading-tight">
-            Fund what <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-violet to-accent-deep">moves you</span>.
-          </h1>
-          <p className="text-[18px] md:text-[20px] text-text-secondary font-body leading-relaxed max-w-[650px] mx-auto">
-            A premium crowdfunding ecosystem built on editorial design, real-time live connection feeds, and audited payout systems.
-          </p>
-        </Reveal>
-
-        {/* Hero CTA Pair */}
-        <Reveal delay={0.2} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/register">
-            <Button variant="primary">Start a Campaign</Button>
-          </Link>
-          <a href="#discovery">
-            <Button variant="secondary">Explore Campaigns</Button>
-          </a>
-        </Reveal>
-
-        {/* White App-Panel Card Mockup */}
-        <Reveal delay={0.3} className="pt-8 max-w-[1080px] mx-auto">
-          <Card variant="app-panel" className="p-6 md:p-10 space-y-8 text-left border border-text-ink/10">
-            {/* Dashboard Mock Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-text-ink/5 pb-6">
-              <div className="space-y-1">
-                <span className="text-xs font-bold text-accent-violet tracking-widest uppercase">Live Campaign Dashboard</span>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-text-ink">Orbital Key: Zero-Gravity Carabiner</h2>
+    <div className="min-h-screen pt-20">
+      {/* Editorial Hero Section */}
+      <section className="relative px-6 lg:px-12 py-16 lg:py-24 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="lg:col-span-7 space-y-8">
+            <Reveal>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-violet/10 text-accent-violet border border-accent-violet/20 text-xs font-bold uppercase tracking-wider">
+                <Sparkles className="w-4 h-4" /> The Next Generation Crowdfunding Platform
               </div>
-              <div className="flex gap-2">
-                <span className="bg-emerald-500/10 text-emerald-600 text-xs px-3.5 py-1.5 rounded-full font-bold">Active</span>
-                <span className="bg-bg-linen text-text-secondary text-xs px-3.5 py-1.5 rounded-full font-medium">12 Days Left</span>
-              </div>
-            </div>
+            </Reveal>
 
-            {/* Dashboard Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-bg-linen p-5 rounded-2xl space-y-1.5">
-                <span className="text-xs font-semibold text-text-secondary tracking-wider uppercase">Funds Raised</span>
-                <p className="font-display text-3xl font-extrabold text-text-ink">$18,450 <span className="text-sm font-medium text-text-secondary">of $25,000</span></p>
-                <div className="w-full bg-text-ink/5 h-2.5 rounded-full overflow-hidden mt-3">
-                  <div className="bg-gradient-to-r from-accent-violet to-accent-peach h-full rounded-full" style={{ width: '73.8%' }}></div>
+            <Reveal delay={0.1}>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-text-ink tracking-tight leading-[1.1]">
+                Fund ideas that shape the future.
+              </h1>
+            </Reveal>
+
+            <Reveal delay={0.2}>
+              <p className="text-lg text-text-secondary leading-relaxed max-w-xl font-normal">
+                Discover breakthrough technology, creative ventures, and community projects. Connect directly with creators and turn bold visions into reality.
+              </p>
+            </Reveal>
+
+            <Reveal delay={0.3}>
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <Link to="/campaigns/new">
+                  <Button variant="primary">Start a Campaign</Button>
+                </Link>
+                <Link to="/discover">
+                  <Button variant="secondary" className="flex items-center gap-2">
+                    <Compass className="w-4 h-4" /> Explore Campaigns
+                  </Button>
+                </Link>
+              </div>
+            </Reveal>
+
+            {/* Key Value Pill Props */}
+            <Reveal delay={0.4}>
+              <div className="pt-6 border-t border-border-ink/10 grid grid-cols-3 gap-6">
+                <div>
+                  <div className="text-2xl font-display font-bold text-text-ink">
+                    <AnimatedCounter value={stats.totalRaised || 125000} prefix="$" />
+                  </div>
+                  <div className="text-xs text-text-muted font-medium mt-1">Total Pledged</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-display font-bold text-text-ink">
+                    <AnimatedCounter value={stats.totalBackers || 840} />
+                  </div>
+                  <div className="text-xs text-text-muted font-medium mt-1">Backers Worldwide</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-display font-bold text-text-ink">
+                    <AnimatedCounter value={stats.fundedCampaigns || 12} />
+                  </div>
+                  <div className="text-xs text-text-muted font-medium mt-1">Projects Funded</div>
                 </div>
               </div>
-
-              <div className="bg-bg-linen p-5 rounded-2xl space-y-1">
-                <span className="text-xs font-semibold text-text-secondary tracking-wider uppercase">Total Backers</span>
-                <p className="font-display text-3xl font-extrabold text-text-ink">142</p>
-                <span className="text-xs text-text-secondary font-medium">+18 backers in the last 24h</span>
-              </div>
-
-              <div className="bg-bg-linen p-5 rounded-2xl space-y-1">
-                <span className="text-xs font-semibold text-text-secondary tracking-wider uppercase">Platform Velocity</span>
-                <p className="font-display text-3xl font-extrabold text-text-ink">Highly Trending</p>
-                <span className="text-xs text-accent-violet font-semibold flex items-center gap-1">
-                  <Zap size={12} fill="currentColor" /> Top 5% this week
-                </span>
-              </div>
-            </div>
-          </Card>
-        </Reveal>
-
-        {/* Animated Platform Metrics Banner */}
-        <Reveal delay={0.4} className="pt-2 max-w-[1080px] mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-text-ink text-surface-white p-8 rounded-card-feature shadow-xl border border-text-ink/10">
-            <div className="space-y-1 text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-accent-peach text-xs font-bold uppercase tracking-wider">
-                <TrendingUp size={16} /> Total Raised
-              </div>
-              <p className="font-display text-3xl md:text-4xl font-extrabold text-white">
-                <AnimatedCounter value={stats.totalRaised} prefix="$" />
-              </p>
-              <p className="text-xs text-white/60">Distributed across verified escrow</p>
-            </div>
-
-            <div className="space-y-1 text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-accent-peach text-xs font-bold uppercase tracking-wider">
-                <Users size={16} /> Active Backers
-              </div>
-              <p className="font-display text-3xl md:text-4xl font-extrabold text-white">
-                <AnimatedCounter value={stats.totalBackers} />
-              </p>
-              <p className="text-xs text-white/60">Global community of backers</p>
-            </div>
-
-            <div className="space-y-1 text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-accent-peach text-xs font-bold uppercase tracking-wider">
-                <Award size={16} /> Funded Projects
-              </div>
-              <p className="font-display text-3xl md:text-4xl font-extrabold text-white">
-                <AnimatedCounter value={stats.fundedCampaigns || stats.totalCampaigns} />
-              </p>
-              <p className="text-xs text-white/60">Successfully funded campaigns</p>
-            </div>
+            </Reveal>
           </div>
-        </Reveal>
-      </section>
 
-      {/* 2. TRUST STRIP */}
-      <section className="w-full bg-gradient-to-r from-accent-violet to-accent-deep text-surface-white py-8">
-        <div className="max-w-[1280px] mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <span className="text-sm font-bold tracking-widest uppercase text-accent-peach">Trusted Campaign Partners</span>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 text-lg font-display font-extrabold tracking-tight opacity-90">
-            <span>WIRED</span>
-            <span>TECHCRUNCH</span>
-            <span>FAST COMPANY</span>
-            <span>STRIPE SECURE</span>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. CAMPAIGN DISCOVERY GRID */}
-      <section id="discovery" className="max-w-[1280px] mx-auto px-6 scroll-mt-24 space-y-12">
-        <div className="text-center space-y-3">
-          <span className="text-[12px] font-bold text-accent-violet tracking-widest uppercase">Explore Projects</span>
-          <h2 className="headline-display text-4xl md:text-5xl font-bold tracking-tight text-text-ink">Discovery Grid</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {campaigns.map((camp, index) => {
-            const pct = Math.min(100, Math.round((camp.amountRaised / camp.fundingGoal) * 100))
-            const daysLeft = getDaysLeft(camp.deadline)
-
-            return (
-              <Reveal key={camp.id || camp._id} delay={index * 0.1} className="h-full">
-                <Card variant="app-panel" className="group flex flex-col justify-between border border-text-ink/10 h-full">
-                  <div>
-                    {/* Cover Image */}
-                    <div className="h-[220px] overflow-hidden relative">
-                      <img 
-                        src={camp.coverImage} 
-                        alt={camp.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <span className="absolute top-4 left-4 bg-white/95 text-text-ink text-xs font-bold px-3.5 py-1.5 rounded-full shadow-sm">
-                        {camp.category}
-                      </span>
-                    </div>
-
-                    {/* Body Content */}
-                    <div className="p-6 space-y-4">
-                      <h3 className="font-display text-[20px] font-medium tracking-tight text-text-ink leading-snug group-hover:text-accent-violet transition-colors">
-                        <Link to={`/campaigns/${camp.slug}`}>{camp.title}</Link>
-                      </h3>
-
-                      {/* Progress visual bar */}
-                      <div className="space-y-1.5">
-                        <div className="w-full bg-text-ink/5 h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-gradient-to-r from-accent-violet to-accent-peach h-full rounded-full" style={{ width: `${pct}%` }}></div>
-                        </div>
-                        <div className="flex justify-between text-xs font-semibold text-text-secondary">
-                          <span>{pct}% Funded</span>
-                          <span>${camp.amountRaised.toLocaleString()} Raised</span>
-                        </div>
-                      </div>
-                    </div>
+          {/* Hero Editorial Featured Card */}
+          <div className="lg:col-span-5">
+            <Reveal delay={0.3}>
+              {loading ? (
+                <Skeleton className="w-full h-96 rounded-3xl" />
+              ) : featuredCampaigns[0] ? (
+                <div className="relative">
+                  <div className="absolute -top-3 -left-3 px-4 py-1.5 bg-accent-violet text-white text-xs font-bold rounded-full z-10 shadow-lg uppercase tracking-wider">
+                    Featured Campaign
                   </div>
-
-                  {/* Footer Metrics */}
-                  <div className="px-6 pb-6 pt-4 border-t border-text-ink/5 flex justify-between items-center text-sm font-medium text-text-secondary">
-                    <span><strong>{camp.backersCount}</strong> backers</span>
-                    <span><strong>{daysLeft}</strong> days left</span>
-                  </div>
-                </Card>
-              </Reveal>
-            )
-          })}
-        </div>
-
-        <div className="text-center pt-4">
-          <Link to="/campaigns">
-            <Button variant="secondary">Browse All Campaigns</Button>
-          </Link>
+                  <CampaignCard campaign={featuredCampaigns[0]} />
+                </div>
+              ) : (
+                <div className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 text-center">
+                  <p className="text-text-secondary text-sm">No featured campaign available right now.</p>
+                </div>
+              )}
+            </Reveal>
+          </div>
         </div>
       </section>
 
-      {/* 4. FEATURE GRID (WHY FUNDRISE) */}
-      <section className="max-w-[1280px] mx-auto px-6 space-y-12">
-        <div className="text-center space-y-3">
-          <span className="text-[12px] font-bold text-accent-violet tracking-widest uppercase">The FundRise Edge</span>
-          <h2 className="headline-display text-4xl md:text-5xl font-bold tracking-tight text-text-ink">Designed for creators.</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          <Reveal className="h-full">
-            <Card variant="gradient-feature" className="p-10 space-y-6 min-h-[320px] flex flex-col justify-between">
-              <Layers className="text-accent-peach" size={32} />
-              <div className="space-y-2">
-                <h3 className="font-display text-2xl font-bold tracking-tight text-surface-white">Premium Editorial Aesthetics</h3>
-                <p className="text-[16px] text-surface-white/70 leading-relaxed font-body">
-                  Step away from cluttered marketplace interfaces. Our clean formatting gives your campaign the presentation it deserves.
-                </p>
-              </div>
-              <span className="text-xs font-bold text-accent-peach uppercase tracking-wider">Premium Canvas Layout</span>
-            </Card>
-          </Reveal>
-
-          <Reveal delay={0.1} className="h-full">
-            <Card variant="gradient-feature" className="p-10 space-y-6 min-h-[320px] flex flex-col justify-between">
-              <Zap className="text-accent-peach" size={32} />
-              <div className="space-y-2">
-                <h3 className="font-display text-2xl font-bold tracking-tight text-surface-white">Real-Time Donation Engine</h3>
-                <p className="text-[16px] text-surface-white/70 leading-relaxed font-body">
-                  Socket.io drives instantaneous backer alerts and donation velocity triggers directly onto creator analytics pages.
-                </p>
-              </div>
-              <span className="text-xs font-bold text-accent-peach uppercase tracking-wider">Real-time alerts</span>
-            </Card>
-          </Reveal>
-
-          <Reveal className="h-full">
-            <Card variant="gradient-feature" className="p-10 space-y-6 min-h-[320px] flex flex-col justify-between">
-              <ShieldCheck className="text-accent-peach" size={32} />
-              <div className="space-y-2">
-                <h3 className="font-display text-2xl font-bold tracking-tight text-surface-white">Secure Stripe Checkouts</h3>
-                <p className="text-[16px] text-surface-white/70 leading-relaxed font-body">
-                  We implement automated escrow accounts and webhook resolvers to handle payouts safely.
-                </p>
-              </div>
-              <span className="text-xs font-bold text-accent-peach uppercase tracking-wider">Audited Transactions</span>
-            </Card>
-          </Reveal>
-
-          <Reveal delay={0.1} className="h-full">
-            <Card variant="gradient-feature" className="p-10 space-y-6 min-h-[320px] flex flex-col justify-between">
-              <Sparkles className="text-accent-peach" size={32} />
-              <div className="space-y-2">
-                <h3 className="font-display text-2xl font-bold tracking-tight text-surface-white">Creator Analytics</h3>
-                <p className="text-[16px] text-surface-white/70 leading-relaxed font-body">
-                  Custom charting panels present donation demographics, velocities, and timeline targets to creators.
-                </p>
-              </div>
-              <span className="text-xs font-bold text-accent-peach uppercase tracking-wider">MERN Analytics Suite</span>
-            </Card>
-          </Reveal>
-
-        </div>
-      </section>
-
-      {/* 5. HOW IT WORKS */}
-      <section id="how-it-works" className="max-w-[1280px] mx-auto px-6 space-y-12">
-        <div className="text-center space-y-3">
-          <span className="text-[12px] font-bold text-accent-violet tracking-widest uppercase">Simplifying Launch</span>
-          <h2 className="headline-display text-4xl md:text-5xl font-bold tracking-tight text-text-ink">How it works.</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Reveal className="h-full">
-            <Card variant="app-panel" className="p-8 space-y-4 h-full">
-              <span className="text-xl font-bold text-accent-violet">01</span>
-              <h3 className="font-display text-[20px] font-semibold text-text-ink">Create Your Project</h3>
-              <p className="text-[15px] text-text-secondary leading-relaxed">
-                Fill in your goal targets, categories, rich story updates, and deadline milestones inside our multi-step creation builder.
-              </p>
-            </Card>
-          </Reveal>
-
-          <Reveal delay={0.1} className="h-full">
-            <Card variant="gradient-feature" className="p-8 space-y-4 text-left justify-between flex flex-col min-h-[250px] h-full">
-              <div>
-                <span className="text-xl font-bold text-accent-peach">02</span>
-                <h3 className="font-display text-[20px] font-semibold text-surface-white mt-1">Donors Connect</h3>
-              </div>
-              <div className="py-4 border-y border-white/10 flex items-center justify-around gap-2 text-center text-xs font-semibold">
-                <div className="bg-white/10 p-3 rounded-xl">Launch</div>
-                <span className="text-accent-peach">→</span>
-                <div className="bg-white/10 p-3 rounded-xl">Backer Match</div>
-                <span className="text-accent-peach">→</span>
-                <div className="bg-white/10 p-3 rounded-xl">payout</div>
-              </div>
-              <p className="text-[14px] text-surface-white/70">
-                Live websockets bridge connection feeds as soon as donors commit.
-              </p>
-            </Card>
-          </Reveal>
-
-          <Reveal delay={0.2} className="h-full">
-            <Card variant="app-panel" className="p-8 space-y-4 h-full">
-              <span className="text-xl font-bold text-accent-violet">03</span>
-              <h3 className="font-display text-[20px] font-semibold text-text-ink">Share & Get Funded</h3>
-              <p className="text-[15px] text-text-secondary leading-relaxed">
-                Launch public update channels to keep campaign backers involved as campaign velocity increases.
-              </p>
-            </Card>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* 6. FAQ & CTA BAND */}
-      <section id="faq" className="max-w-[1280px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-        
-        {/* Accordion FAQ Cards */}
-        <div className="space-y-4">
-          <div className="pb-4">
-            <span className="text-[12px] font-bold text-accent-violet tracking-widest uppercase">Support Channels</span>
-            <h2 className="headline-display text-4xl font-bold tracking-tight text-text-ink mt-2">Frequently Asked</h2>
+      {/* Category Discovery Grid */}
+      <section className="px-6 lg:px-12 py-16 bg-surface-white/60 border-y border-border-ink/10">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h2 className="text-2xl lg:text-3xl font-display font-bold text-text-ink">Explore Categories</h2>
+              <p className="text-sm text-text-secondary mt-1">Find campaigns aligned with your passion</p>
+            </div>
+            <Link to="/discover" className="hidden sm:flex items-center gap-2 text-sm font-semibold text-accent-violet hover:underline">
+              View All <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
-          <div className="space-y-4">
-            {faqData.map((item, idx) => {
-              const isOpen = activeFaq === idx
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {categories.map((cat, idx) => {
+              const Icon = cat.icon
               return (
-                <Reveal key={idx} delay={idx * 0.1}>
-                  <Card variant="faq" className="p-6 cursor-pointer" onClick={() => toggleFaq(idx)}>
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className={`font-display text-[18px] font-semibold transition-colors ${isOpen ? 'text-accent-violet' : 'text-text-ink'}`}>
-                        {item.q}
-                      </h3>
-                      <ChevronDown size={18} className={`transition-transform duration-300 ${isOpen ? 'rotate-180 text-accent-violet' : 'text-text-secondary'}`} />
-                    </div>
-                    {isOpen && (
-                      <p className="text-[15px] text-text-secondary leading-relaxed pt-4 border-t border-text-ink/5 mt-4 animate-fade-in">
-                        {item.a}
-                      </p>
-                    )}
-                  </Card>
-                </Reveal>
+                <Link
+                  key={idx}
+                  to={`/discover?category=${cat.name}`}
+                  className="p-5 bg-surface-white rounded-2xl border border-border-ink/10 hover:border-text-ink hover:-translate-y-1 transition-all group"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-accent-violet/10 text-accent-violet flex items-center justify-center mb-3 group-hover:bg-accent-violet group-hover:text-white transition-colors">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-display font-bold text-text-ink text-base mb-1">{cat.name}</h3>
+                  <p className="text-xs text-text-muted">{cat.desc}</p>
+                </Link>
               )
             })}
           </div>
         </div>
-
-        {/* CTA Band */}
-        <Reveal delay={0.2} className="w-full">
-          <Card variant="cta-band" className="p-8 md:p-12 space-y-6 flex flex-col justify-between min-h-[400px]">
-            <div className="space-y-3">
-              <span className="text-[12px] font-bold text-text-ink tracking-widest uppercase">Ready to Start?</span>
-              <h2 className="headline-display text-[32px] md:text-[44px] text-text-ink font-bold tracking-tight leading-tight">
-                Ready to launch your campaign?
-              </h2>
-              <p className="text-[16px] text-text-ink/80 leading-relaxed font-body max-w-[450px]">
-                Set up in minutes. Track payments transparently. Engage backer communities instantly.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-4 items-center">
-              <Link to="/register">
-                <Button variant="primary">Create Campaign</Button>
-              </Link>
-              <Link to="/campaigns">
-                <Button variant="secondary" className="bg-surface-white/20 border-transparent text-text-ink">
-                  Explore Projects
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        </Reveal>
-
       </section>
 
-      {/* 7. FOOTER */}
-      <footer className="w-full bg-bg-linen border-t border-text-ink/5 pt-16 pb-2 relative">
-        <div className="max-w-[1280px] mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8 pb-12">
-          
-          <div className="md:col-span-2 space-y-4">
-            <h3 className="headline-display text-2xl font-bold tracking-tight text-text-ink">
-              FundRise<span className="text-accent-violet">.</span>
-            </h3>
-            <p className="text-text-secondary text-sm max-w-[320px] leading-relaxed">
-              Premium, MERN-engineered editorial crowdfunding framework for digital creators.
+      {/* Trending Campaigns Section */}
+      <section className="px-6 lg:px-12 py-20 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent-violet mb-1">
+              <TrendingUp className="w-4 h-4" /> High Momentum
+            </div>
+            <h2 className="text-2xl lg:text-3xl font-display font-bold text-text-ink">Trending Projects</h2>
+          </div>
+          <Link to="/discover?sort=trending" className="flex items-center gap-2 text-sm font-semibold text-accent-violet hover:underline">
+            See More Trending <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Skeleton className="h-96 rounded-3xl" />
+            <Skeleton className="h-96 rounded-3xl" />
+            <Skeleton className="h-96 rounded-3xl" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {trendingCampaigns.length > 0 ? (
+              trendingCampaigns.map((c) => <CampaignCard key={c._id} campaign={c} />)
+            ) : (
+              <p className="col-span-3 text-center text-text-secondary py-12">No active trending campaigns found.</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* How It Works Section */}
+      <section className="px-6 lg:px-12 py-20 bg-text-ink text-surface-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-wider text-accent-peach mb-2 block">
+              Transparent Ecosystem
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-display font-bold mb-4">How FundRise Works</h2>
+            <p className="text-text-muted text-sm leading-relaxed">
+              Whether you're launching a campaign or backing a creative dream, FundRise ensures transparency, security, and real accountability at every step.
             </p>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-text-ink tracking-wider uppercase">Explore</h4>
-            <ul className="space-y-2 text-sm text-text-secondary font-medium">
-              <li><Link to="/campaigns" className="hover:text-text-ink transition-colors">Campaign Discovery</Link></li>
-              <li><Link to="/register" className="hover:text-text-ink transition-colors">Start Campaign</Link></li>
-              <li><a href="#how-it-works" className="hover:text-text-ink transition-colors">Platform Scope</a></li>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+              <div className="w-12 h-12 rounded-2xl bg-accent-peach/20 text-accent-peach flex items-center justify-center font-bold text-xl mb-6">
+                1
+              </div>
+              <h3 className="text-xl font-display font-bold mb-3">Create & Present</h3>
+              <p className="text-sm text-text-muted leading-relaxed">
+                Creators pitch their vision with rich media, realistic budgets, and defined reward tiers.
+              </p>
+            </div>
+
+            <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+              <div className="w-12 h-12 rounded-2xl bg-accent-peach/20 text-accent-peach flex items-center justify-center font-bold text-xl mb-6">
+                2
+              </div>
+              <h3 className="text-xl font-display font-bold mb-3">Back & Track</h3>
+              <p className="text-sm text-text-muted leading-relaxed">
+                Backers pledge funds securely via Stripe, receive instant receipts, and unlock exclusive rewards.
+              </p>
+            </div>
+
+            <div className="p-8 bg-white/5 rounded-3xl border border-white/10">
+              <div className="w-12 h-12 rounded-2xl bg-accent-peach/20 text-accent-peach flex items-center justify-center font-bold text-xl mb-6">
+                3
+              </div>
+              <h3 className="text-xl font-display font-bold mb-3">Fulfill & Deliver</h3>
+              <p className="text-sm text-text-muted leading-relaxed">
+                Funded creators post regular progress updates and request verified payouts for milestone delivery.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust & Moderation Assurance */}
+      <section className="px-6 lg:px-12 py-20 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-4">
+              <ShieldCheck className="w-4 h-4" /> Platform Trust & Safety
+            </div>
+            <h2 className="text-3xl lg:text-4xl font-display font-bold text-text-ink mb-6">
+              Built on security, transparency, and accountability.
+            </h2>
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-accent-violet/10 text-accent-violet flex items-center justify-center flex-shrink-0">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-display font-bold text-text-ink text-base mb-1">Encrypted Payment Infrastructure</h4>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    Powered by Stripe with minor units precision, Webhook signature verification, and zero stored payment credentials.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-accent-violet/10 text-accent-violet flex items-center justify-center flex-shrink-0">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-display font-bold text-text-ink text-base mb-1">Curated Campaign Moderation</h4>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    Every project undergoes rigorous administrator review before going active to prevent fraud and misuse.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-accent-violet/10 text-accent-violet flex items-center justify-center flex-shrink-0">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-display font-bold text-text-ink text-base mb-1">Real-time Backer Feeds</h4>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    Live funding progress, backer activity feeds, and transparent payout audit logs.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 shadow-xl space-y-6">
+            <h3 className="text-xl font-display font-bold text-text-ink border-b border-border-ink/10 pb-4">
+              Platform Commitment
+            </h3>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              "We believe crowdfunding works best when creators have tools for storytelling and backers have complete financial peace of mind. FundRise V2 brings modern fintech standards to crowdfunding."
+            </p>
+            <div className="flex items-center gap-4 pt-4">
+              <div className="w-12 h-12 rounded-full bg-accent-violet/20 flex items-center justify-center text-accent-violet font-bold text-lg">
+                FR
+              </div>
+              <div>
+                <div className="font-display font-bold text-text-ink text-sm">FundRise Engineering & Design</div>
+                <div className="text-xs text-text-muted">Google DeepMind AGY Standards</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-surface-white border-t border-border-ink/10 px-6 lg:px-12 py-16">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+          <div className="space-y-4">
+            <span className="font-display text-2xl font-bold text-text-ink">
+              FundRise<span className="text-accent-violet">.</span>
+            </span>
+            <p className="text-sm text-text-secondary">
+              A modern, production-grade crowdfunding marketplace for creators and backers worldwide.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="font-display font-bold text-text-ink text-sm uppercase tracking-wider mb-4">Discover</h4>
+            <ul className="space-y-2 text-sm text-text-secondary">
+              <li><Link to="/discover" className="hover:text-text-ink transition-colors">Tech & Innovation</Link></li>
+              <li><Link to="/discover" className="hover:text-text-ink transition-colors">Creative Arts</Link></li>
+              <li><Link to="/discover" className="hover:text-text-ink transition-colors">Community Projects</Link></li>
+              <li><Link to="/discover" className="hover:text-text-ink transition-colors">Charity & Aid</Link></li>
             </ul>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-text-ink tracking-wider uppercase">Authentication</h4>
-            <ul className="space-y-2 text-sm text-text-secondary font-medium">
-              <li><Link to="/login" className="hover:text-text-ink transition-colors">Sign In</Link></li>
-              <li><Link to="/register" className="hover:text-text-ink transition-colors">Register</Link></li>
-              <li><Link to="/dashboard" className="hover:text-text-ink transition-colors">Creator Dashboard</Link></li>
+          <div>
+            <h4 className="font-display font-bold text-text-ink text-sm uppercase tracking-wider mb-4">Company</h4>
+            <ul className="space-y-2 text-sm text-text-secondary">
+              <li><Link to="/about" className="hover:text-text-ink transition-colors">About Us</Link></li>
+              <li><Link to="/how-it-works" className="hover:text-text-ink transition-colors">How It Works</Link></li>
+              <li><Link to="/terms" className="hover:text-text-ink transition-colors">Terms of Service</Link></li>
+              <li><Link to="/privacy" className="hover:text-text-ink transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
 
+          <div>
+            <h4 className="font-display font-bold text-text-ink text-sm uppercase tracking-wider mb-4">Get Started</h4>
+            <div className="space-y-3">
+              <Link to="/register" className="block">
+                <Button variant="primary" className="w-full text-xs font-bold">Start a Campaign</Button>
+              </Link>
+              <Link to="/discover" className="block">
+                <Button variant="secondary" className="w-full text-xs font-bold">Explore Marketplace</Button>
+              </Link>
+            </div>
+          </div>
         </div>
 
-        {/* Giant Ghost wordmark */}
-        <div className="text-center select-none pointer-events-none opacity-5 overflow-hidden">
-          <h1 className="headline-display text-[150px] md:text-[220px] font-black text-text-ink tracking-tighter leading-none translate-y-8">
-            FUNDRISE
-          </h1>
+        <div className="max-w-7xl mx-auto pt-8 border-t border-border-ink/10 flex flex-col sm:flex-row items-center justify-between text-xs text-text-muted gap-4">
+          <p>© {new Date().getFullYear()} FundRise V2. All rights reserved.</p>
+          <div className="flex gap-6">
+            <Link to="/terms" className="hover:underline">Terms</Link>
+            <Link to="/privacy" className="hover:underline">Privacy</Link>
+            <Link to="/refund-policy" className="hover:underline">Refund Policy</Link>
+          </div>
         </div>
       </footer>
-
     </div>
   )
 }

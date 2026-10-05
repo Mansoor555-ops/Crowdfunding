@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { Navbar } from './components/layout/Navbar'
+import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { ToastContainer } from './components/ui/Toast'
 
 import Home from './pages/Home'
@@ -29,7 +30,7 @@ export default function App() {
 
           {/* Real-time Global Toast Container */}
           <ToastContainer />
-          
+
           {/* Main Routing Content */}
           <main className="flex-grow">
             <Routes>
@@ -37,7 +38,6 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/discover" element={<Discover />} />
               <Route path="/campaigns" element={<Discover />} />
-              <Route path="/campaigns/new" element={<CreateCampaign />} />
               <Route path="/campaigns/:slug" element={<CampaignDetail />} />
               <Route path="/about" element={<About />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
@@ -49,17 +49,67 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              {/* User / Backer Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/notifications" element={<Notifications />} />
+              {/* Protected User / Backer Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/campaigns/new"
+                element={
+                  <ProtectedRoute>
+                    <CreateCampaign />
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* Creator Hub Routes */}
-              <Route path="/creator" element={<CreatorDashboard />} />
-              <Route path="/creator/payouts" element={<CreatorDashboard />} />
+              {/* Protected Creator Routes */}
+              <Route
+                path="/creator"
+                element={
+                  <ProtectedRoute allowedRoles={['creator', 'admin']}>
+                    <CreatorDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/creator/payouts"
+                element={
+                  <ProtectedRoute allowedRoles={['creator', 'admin']}>
+                    <CreatorDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* Admin Platform Routes */}
-              <Route path="/admin" element={<Admin />} />
+              {/* Protected Admin Console Route */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
         </div>

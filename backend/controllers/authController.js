@@ -229,11 +229,100 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// @desc    Request Password Reset Token
+// @route   POST /api/auth/forgot-password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      // Return success to prevent email enumeration
+      return res.json({ message: 'If an account with that email exists, a password reset link has been created.' });
+    }
+
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    await user.save();
+
+    res.json({
+      message: 'If an account with that email exists, a password reset link has been created.',
+      resetToken // Returned in response for dev environment testing
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error during password reset request.' });
+  }
+};
+
+// @desc    Reset Password with Token
+// @route   POST /api/auth/reset-password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Valid token and new password (min 6 characters) are required.' });
+    }
+
+    const crypto = require('crypto');
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: resetTokenHash,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Password reset token is invalid or has expired.' });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    res.json({ message: 'Password has been reset successfully. You can now login with your new password.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error during password reset.' });
+  }
+};
+
+// @desc    Change Password for Logged In User
+// @route   POST /api/auth/change-password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Current password and valid new password (min 6 characters) are required.' });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Incorrect current password.' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: 'Password changed successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error during password change.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   refreshToken,
   logout,
   getProfile,
-  updateProfile
+  updateProfile,
+  forgotPassword,
+  resetPassword,
+  changePassword
 };

@@ -359,6 +359,36 @@ const getUserBookmarks = async (req, res) => {
   }
 };
 
+// @desc    Report a campaign
+// @route   POST /api/campaigns/:id/report
+const reportCampaign = async (req, res) => {
+  try {
+    const CampaignReport = require('../models/CampaignReport');
+    const { reason, details } = req.body;
+
+    if (!reason || !details) {
+      return res.status(400).json({ error: 'Reason and details are required to submit a report.' });
+    }
+
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+
+    const report = new CampaignReport({
+      campaign: campaign._id,
+      reporter: req.user._id,
+      reason,
+      details
+    });
+
+    await report.save();
+    res.status(201).json({ message: 'Campaign report submitted successfully for moderation review.', report });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while submitting report.' });
+  }
+};
+
 module.exports = {
   createCampaign,
   getCampaigns,
@@ -370,5 +400,6 @@ module.exports = {
   getCampaignComments,
   addCampaignComment,
   toggleBookmark,
-  getUserBookmarks
+  getUserBookmarks,
+  reportCampaign
 };
