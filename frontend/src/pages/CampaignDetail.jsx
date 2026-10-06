@@ -102,22 +102,20 @@ export default function CampaignDetail() {
     loadCampaign()
   }, [slug, user])
 
+  // Socket.io Real-time Donation Stream
   useEffect(() => {
-    if (!campaign) return
+    if (!campaign?._id) return
 
     const socket = io('/', { path: '/socket.io' })
     socket.emit('join-campaign', campaign._id)
 
     socket.on('donation-received', (data) => {
-      setCampaign((prev) => {
-        if (!prev) return prev
-        const newAmount = prev.amountRaised + data.amount
-        return {
-          ...prev,
-          amountRaised: newAmount,
-          backersCount: prev.backersCount + 1
-        }
-      })
+      setCampaign((prev) => prev ? {
+        ...prev,
+        amountRaised: (prev.amountRaised || 0) + (data.amount || 0),
+        backersCount: (prev.backersCount || 0) + 1
+      } : prev)
+
       setDonations((prev) => [data, ...prev])
     })
 
@@ -128,49 +126,53 @@ export default function CampaignDetail() {
   }, [campaign?._id])
 
   const handleBookmarkToggle = async () => {
-    if (!user) return alert('Please sign in to bookmark campaigns.')
+    if (!user) {
+      alert('Please log in to save campaigns.')
+      return
+    }
     try {
       const res = await api.post(`/campaigns/${campaign._id}/bookmark`)
       setIsBookmarked(res.bookmarked)
     } catch (err) {
-      alert('Failed to update bookmark')
+      console.error('Bookmark error:', err)
     }
   }
 
   const handleInitiateDonation = (rewardTier = null) => {
+    setSelectedReward(rewardTier)
     if (rewardTier) {
-      setSelectedReward(rewardTier)
       setDonationAmount(rewardTier.minimumAmount.toString())
     }
     setDonationStep('amount')
     setDonationModalOpen(true)
   }
 
-  const handleConfirmPayment = async () => {
+  const handleProcessPayment = async () => {
+    const amt = parseFloat(donationAmount)
+    if (isNaN(amt) || amt <= 0) {
+      alert('Please enter a valid pledge amount.')
+      return
+    }
+
     setPaymentLoading(true)
     try {
-      const amountNum = parseFloat(donationAmount)
-      if (isNaN(amountNum) || amountNum < 1) {
-        throw new Error('Please enter a valid donation amount of at least ₹1.')
-      }
-
-      const intentData = await api.post('/donations/intent', {
+      const intentRes = await api.post('/donations/create-payment-intent', {
         campaignId: campaign._id,
-        amount: amountNum,
-        isAnonymous,
-        rewardTier: selectedReward ? selectedReward.title : undefined
+        amount: amt,
+        rewardTierId: selectedReward?._id
       })
 
-      const confirmData = await api.post('/donations/mock-confirm', {
-        paymentIntentId: intentData.paymentIntentId
+      const confirmRes = await api.post('/donations/webhook-mock', {
+        paymentIntentId: intentRes.paymentIntentId,
+        isAnonymous
       })
+
+      setCompletedDonation(confirmRes.donation)
+      setDonationStep('success')
 
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } })
-
-      setCompletedDonation(confirmData)
-      setDonationStep('success')
     } catch (err) {
-      alert(err.message || 'Payment processing failed.')
+      alert(err.message || 'Payment processing failed. Please try again.')
     } finally {
       setPaymentLoading(false)
     }
@@ -179,12 +181,11 @@ export default function CampaignDetail() {
   const handlePostComment = async (e) => {
     e.preventDefault()
     if (!newComment.trim()) return
-    if (!user) return alert('Please sign in to join the conversation.')
 
     setCommentSubmitting(true)
     try {
-      const res = await api.post(`/campaigns/${campaign._id}/comments`, { text: newComment })
-      setComments([res.comment, ...comments])
+      const res = await api.post(`/campaigns/${campaign._id}/comments`, { content: newComment })
+      setComments((prev) => [res.comment, ...prev])
       setNewComment('')
     } catch (err) {
       alert(err.message || 'Failed to post comment.')
@@ -213,7 +214,7 @@ export default function CampaignDetail() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-28 space-y-8">
+      <div className="max-w-7xl mx-auto px-6 py-28 space-y-8 font-body">
         <Skeleton className="h-12 w-2/3" />
         <Skeleton className="h-[450px] w-full rounded-3xl" />
       </div>
@@ -222,13 +223,13 @@ export default function CampaignDetail() {
 
   if (error || !campaign) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-32 text-center">
+      <div className="max-w-3xl mx-auto px-6 py-32 text-center font-body">
         <EmptyState
           title="Campaign Not Found"
           description={error || 'The requested campaign could not be located or has been archived.'}
           action={
-            <Link to="/discover" className="px-6 py-3 bg-text-ink text-white rounded-full text-xs font-bold">
-              Explore Marketplace
+            <Link to="/discover">
+              <Button variant="primary">Explore Marketplace</Button>
             </Link>
           }
         />
@@ -243,14 +244,19 @@ export default function CampaignDetail() {
   const presetAmounts = ['500', '1000', '2500', '5000', '10000']
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-7xl mx-auto">
+    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-7xl mx-auto font-body">
       {/* Campaign Header Title */}
       <div className="mb-8 space-y-3">
         <div className="flex items-center gap-3">
-          <Badge variant={campaign.status}>{campaign.category}</Badge>
-          <span className="text-xs text-text-muted font-medium">Created by {campaign.creator?.name || 'Verified Creator'}</span>
+          <Badge variant={campaign.status} className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            {campaign.category}
+          </Badge>
+          <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
+            Created by <strong className="text-slate-900">{campaign.creator?.name || 'Verified Creator'}</strong>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+          </span>
         </div>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-text-ink tracking-tight leading-tight">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-extrabold text-slate-900 tracking-tight leading-tight">
           {campaign.title}
         </h1>
       </div>
@@ -259,14 +265,14 @@ export default function CampaignDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-16">
         {/* Left Column: Cover Media Gallery */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="aspect-video rounded-3xl overflow-hidden bg-black/5 border border-border-ink/10 shadow-sm">
+          <div className="aspect-video rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 shadow-xs">
             <img src={campaign.coverImage} alt={campaign.title} className="w-full h-full object-cover" />
           </div>
 
           {campaign.gallery && campaign.gallery.length > 0 && (
             <div className="grid grid-cols-4 gap-4">
               {campaign.gallery.map((img, idx) => (
-                <div key={idx} className="aspect-video rounded-xl overflow-hidden border border-border-ink/10">
+                <div key={idx} className="aspect-video rounded-xl overflow-hidden border border-slate-200">
                   <img src={img} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
                 </div>
               ))}
@@ -276,64 +282,65 @@ export default function CampaignDetail() {
 
         {/* Right Column: Funding Panel Card */}
         <div className="lg:col-span-5">
-          <div className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 shadow-lg sticky top-28 space-y-6">
+          <div className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-xl sticky top-28 space-y-6">
             <div>
               <ProgressBar value={campaign.amountRaised} max={campaign.fundingGoal} className="h-3 mb-4" />
-              <div className="text-4xl font-display font-bold text-text-ink mb-1">
+              <div className="text-4xl font-display font-extrabold text-slate-900 mb-1">
                 ₹{(campaign.amountRaised || 0).toLocaleString('en-IN')}
               </div>
-              <p className="text-xs text-text-muted font-medium">
+              <p className="text-xs text-slate-500 font-medium">
                 pledged of ₹{(campaign.fundingGoal || 0).toLocaleString('en-IN')} goal ({percentage}%)
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 py-4 border-y border-border-ink/10">
+            <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100">
               <div>
-                <div className="text-2xl font-display font-bold text-text-ink">{campaign.backersCount || 0}</div>
-                <div className="text-xs text-text-muted font-medium">Backers Pledged</div>
+                <div className="text-2xl font-display font-bold text-slate-900">{campaign.backersCount || 0}</div>
+                <div className="text-xs text-slate-500 font-medium">Backers Pledged</div>
               </div>
               <div>
-                <div className="text-2xl font-display font-bold text-text-ink">{daysRemaining}</div>
-                <div className="text-xs text-text-muted font-medium">Days Remaining</div>
+                <div className="text-2xl font-display font-bold text-slate-900">{daysRemaining}</div>
+                <div className="text-xs text-slate-500 font-medium">Days Remaining</div>
               </div>
             </div>
 
             {/* Main Action CTAs */}
             <div className="space-y-3">
-              <button
+              <Button
+                variant="primary"
                 onClick={() => handleInitiateDonation()}
                 disabled={campaign.status !== 'active'}
-                className="w-full py-4 bg-text-ink hover:opacity-90 disabled:opacity-50 text-white font-display font-bold rounded-full text-base tracking-wide transition-all shadow-md active:scale-95"
+                className="w-full h-14 text-base font-bold shadow-lg shadow-emerald-600/20"
               >
                 {campaign.status === 'active' ? 'Back This Project' : 'Campaign Closed'}
-              </button>
+              </Button>
 
               <div className="flex gap-3">
                 <button
                   onClick={handleBookmarkToggle}
-                  className="flex-1 py-3 px-4 rounded-full border border-border-ink/15 text-text-ink font-semibold text-xs flex items-center justify-center gap-2 hover:bg-black/5 transition-all"
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all cursor-pointer"
                 >
-                  <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-accent-violet text-accent-violet' : ''}`} />
-                  {isBookmarked ? 'Bookmarked' : 'Save'}
+                  <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-emerald-600 text-emerald-600' : ''}`} />
+                  {isBookmarked ? 'Saved' : 'Save'}
                 </button>
                 <button
                   onClick={() => setShareModalOpen(true)}
-                  className="flex-1 py-3 px-4 rounded-full border border-border-ink/15 text-text-ink font-semibold text-xs flex items-center justify-center gap-2 hover:bg-black/5 transition-all"
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all cursor-pointer"
                 >
-                  <Share2 className="w-4 h-4 text-accent-violet" /> Share
+                  <Share2 className="w-4 h-4 text-emerald-600" /> Share
                 </button>
               </div>
             </div>
 
             {/* Trust Assurance Badge */}
-            <div className="flex items-center justify-between text-xs text-text-muted pt-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-2">
               <div className="flex items-center gap-1.5 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" /> All-or-nothing fundraising
+                <ShieldCheck className="w-4 h-4 text-emerald-600" /> All-or-nothing guarantee
               </div>
               {user && (
                 <button
                   onClick={() => setReportModalOpen(true)}
-                  className="text-text-muted hover:text-red-600 transition-colors flex items-center gap-1 text-[11px]"
+                  className="text-slate-400 hover:text-rose-600 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
                 >
                   <Flag className="w-3 h-3" /> Report
                 </button>
@@ -361,9 +368,9 @@ export default function CampaignDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8">
           {activeTab === 'story' && (
-            <div className="bg-surface-white p-8 rounded-3xl border border-border-ink/10 space-y-6">
-              <h3 className="text-2xl font-display font-bold text-text-ink">About This Campaign</h3>
-              <div className="prose max-w-none text-text-secondary leading-relaxed space-y-4 whitespace-pre-line text-base">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-sm space-y-6">
+              <h3 className="text-2xl font-display font-bold text-slate-900">About This Project</h3>
+              <div className="prose max-w-none text-slate-600 leading-relaxed space-y-4 whitespace-pre-line text-base">
                 {campaign.description}
               </div>
             </div>
@@ -373,26 +380,27 @@ export default function CampaignDetail() {
             <div className="space-y-6">
               {campaign.rewardTiers && campaign.rewardTiers.length > 0 ? (
                 campaign.rewardTiers.map((reward, idx) => (
-                  <div key={idx} className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 flex flex-col justify-between">
+                  <div key={idx} className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-xl font-display font-bold text-text-ink">{reward.title}</h4>
-                        <span className="text-lg font-bold text-accent-violet">₹{(reward.minimumAmount || 0).toLocaleString('en-IN')}+</span>
+                        <h4 className="text-xl font-display font-bold text-slate-900">{reward.title}</h4>
+                        <span className="text-lg font-bold text-emerald-700">₹{(reward.minimumAmount || 0).toLocaleString('en-IN')}+</span>
                       </div>
-                      <p className="text-sm text-text-secondary mb-6">{reward.description}</p>
+                      <p className="text-sm text-slate-600 mb-6">{reward.description}</p>
                       {reward.estimatedDelivery && (
-                        <div className="text-xs text-text-muted flex items-center gap-1.5 mb-4">
-                          <Package className="w-4 h-4 text-accent-violet" /> Estimated Delivery: {reward.estimatedDelivery}
+                        <div className="text-xs text-slate-400 flex items-center gap-1.5 mb-4">
+                          <Package className="w-4 h-4 text-emerald-600" /> Estimated Delivery: {reward.estimatedDelivery}
                         </div>
                       )}
                     </div>
-                    <button
+                    <Button
+                      variant="primary"
                       onClick={() => handleInitiateDonation(reward)}
                       disabled={campaign.status !== 'active'}
-                      className="w-full py-3 bg-text-ink hover:opacity-90 text-white rounded-full font-semibold text-sm transition-all"
+                      className="w-full text-xs font-bold"
                     >
-                      Select ₹{(reward.minimumAmount || 0).toLocaleString('en-IN')} Tier
-                    </button>
+                      Pledge ₹{(reward.minimumAmount || 0).toLocaleString('en-IN')} Tier
+                    </Button>
                   </div>
                 ))
               ) : (
@@ -405,12 +413,12 @@ export default function CampaignDetail() {
             <div className="space-y-6">
               {updates.length > 0 ? (
                 updates.map((upd) => (
-                  <div key={upd._id} className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 space-y-4">
+                  <div key={upd._id} className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xl font-display font-bold text-text-ink">{upd.title}</h4>
-                      <span className="text-xs text-text-muted">{new Date(upd.createdAt).toLocaleDateString()}</span>
+                      <h4 className="text-xl font-display font-bold text-slate-900">{upd.title}</h4>
+                      <span className="text-xs text-slate-400">{new Date(upd.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-sm text-text-secondary whitespace-pre-line leading-relaxed">{upd.content}</p>
+                    <p className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">{upd.content}</p>
                   </div>
                 ))
               ) : (
@@ -422,7 +430,7 @@ export default function CampaignDetail() {
           {activeTab === 'comments' && (
             <div className="space-y-8">
               {/* Comment Input Form */}
-              <form onSubmit={handlePostComment} className="p-6 bg-surface-white rounded-3xl border border-border-ink/10 space-y-4">
+              <form onSubmit={handlePostComment} className="p-6 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
                 <Textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
@@ -431,13 +439,14 @@ export default function CampaignDetail() {
                   rows={3}
                 />
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     type="submit"
+                    variant="primary"
                     disabled={!user || commentSubmitting || !newComment.trim()}
-                    className="px-6 py-2.5 bg-text-ink text-white rounded-full text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2"
+                    className="h-10 px-5 text-xs font-bold"
                   >
                     <Send className="w-3.5 h-3.5" /> Post Comment
-                  </button>
+                  </Button>
                 </div>
               </form>
 
@@ -445,61 +454,154 @@ export default function CampaignDetail() {
               <div className="space-y-4">
                 {comments.length > 0 ? (
                   comments.map((comm) => (
-                    <div key={comm._id} className="p-6 bg-surface-white rounded-2xl border border-border-ink/10 flex gap-4">
+                    <div key={comm._id} className="p-6 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex gap-4">
                       <Avatar src={comm.user?.avatar} name={comm.user?.name || 'Backer'} size="md" />
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-display font-bold text-text-ink text-sm">{comm.user?.name || 'Backer'}</span>
-                          <span className="text-xs text-text-muted">{new Date(comm.createdAt).toLocaleDateString()}</span>
+                          <span className="font-display font-bold text-slate-900 text-sm">{comm.user?.name || 'Anonymous Backer'}</span>
+                          <span className="text-[11px] text-slate-400">{new Date(comm.createdAt).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-sm text-text-secondary">{comm.text}</p>
+                        <p className="text-xs text-slate-600 leading-relaxed">{comm.content}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <EmptyState title="No comments yet" description="Be the first backer to leave a message of support!" />
+                  <EmptyState title="No comments yet" description="Be the first backer to start a conversation with the creator!" />
                 )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Creator Info Sidebar Card */}
+        {/* Creator Bio Sidebar */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="p-6 bg-surface-white rounded-3xl border border-border-ink/10 space-y-4">
-            <h4 className="font-display font-bold text-text-ink text-sm uppercase tracking-wider">Campaign Creator</h4>
-            <div className="flex items-center gap-4">
-              <Avatar src={campaign.creator?.avatar} name={campaign.creator?.name} size="lg" />
+          <div className="p-6 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">About the Creator</h4>
+            <div className="flex items-center gap-3">
+              <Avatar src={campaign.creator?.avatar} name={campaign.creator?.name || 'Creator'} size="lg" />
               <div>
-                <h5 className="font-display font-bold text-text-ink text-base">{campaign.creator?.name}</h5>
-                <span className="text-xs text-emerald-600 font-semibold">Verified Creator</span>
+                <h5 className="font-display font-bold text-slate-900 text-base">{campaign.creator?.name || 'Verified Creator'}</h5>
+                <p className="text-xs text-slate-500">{campaign.creator?.email}</p>
               </div>
             </div>
-            {campaign.creator?.bio && <p className="text-xs text-text-secondary">{campaign.creator.bio}</p>}
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Verified creator on FundRise Marketplace. Direct communications and milestone updates guaranteed.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Sticky Bottom Quick Donate Floating Bar */}
-      {showStickyBar && campaign.status === 'active' && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-3xl bg-surface-white/95 backdrop-blur-md p-4 rounded-full border border-border-ink/10 shadow-2xl flex items-center justify-between gap-4 transition-all animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <img src={campaign.coverImage} alt={campaign.title} className="w-10 h-10 rounded-full object-cover shrink-0" />
-            <div className="truncate">
-              <h4 className="font-display font-bold text-sm text-text-ink truncate">{campaign.title}</h4>
-              <p className="text-xs text-accent-violet font-semibold">
-                ₹{(campaign.amountRaised || 0).toLocaleString('en-IN')} raised ({percentage}%)
-              </p>
-            </div>
+      {/* Sticky Bottom Donate Floating Bar */}
+      {showStickyBar && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-3xl bg-slate-900/95 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md border border-slate-700 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
+          <div className="hidden sm:block truncate">
+            <h4 className="font-display font-bold text-sm text-white truncate">{campaign.title}</h4>
+            <span className="text-xs text-emerald-400 font-medium">
+              ₹{(campaign.amountRaised || 0).toLocaleString('en-IN')} raised ({percentage}%)
+            </span>
           </div>
-          <button
-            onClick={() => handleInitiateDonation()}
-            className="px-6 py-2.5 bg-text-ink text-white font-display font-bold text-xs rounded-full hover:opacity-90 shrink-0 shadow-md"
-          >
-            Back This Project
-          </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <Button
+              variant="primary"
+              onClick={() => handleInitiateDonation()}
+              disabled={campaign.status !== 'active'}
+              className="h-11 px-6 text-xs font-bold shadow-md shadow-emerald-600/30 shrink-0"
+            >
+              Back This Project
+            </Button>
+          </div>
         </div>
       )}
+
+      {/* Donation Modal Flow */}
+      <Modal isOpen={donationModalOpen} onClose={() => setDonationModalOpen(false)} title="Back This Project">
+        {donationStep === 'amount' && (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-2 block">Pledge Amount (₹)</label>
+              <CurrencyInput
+                value={donationAmount}
+                onChange={(e) => setDonationAmount(e.target.value)}
+                placeholder="Enter custom amount"
+              />
+            </div>
+
+            {/* Quick Presets */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-2 block">Select Preset Tier</label>
+              <div className="flex flex-wrap gap-2">
+                {presetAmounts.map((amt) => (
+                  <button
+                    key={amt}
+                    onClick={() => setDonationAmount(amt)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      donationAmount === amt
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    ₹{parseInt(amt).toLocaleString('en-IN')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Checkbox
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+              label="Make my pledge anonymous on public backer list"
+            />
+
+            <Button variant="primary" onClick={() => setDonationStep('payment')} className="w-full">
+              Proceed to Payment Confirmation
+            </Button>
+          </div>
+        )}
+
+        {donationStep === 'payment' && (
+          <div className="space-y-6 text-center">
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200">
+              <span className="text-xs text-emerald-800 font-semibold uppercase tracking-wider block mb-1">Total Pledge</span>
+              <span className="text-3xl font-display font-extrabold text-emerald-900">
+                ₹{parseFloat(donationAmount || '0').toLocaleString('en-IN')}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Your pledge is processed via simulated UPI/Card Razorpay gateway with end-to-end encryption.
+            </p>
+
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={() => setDonationStep('amount')} className="w-1/2">
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleProcessPayment}
+                disabled={paymentLoading}
+                className="w-1/2"
+              >
+                {paymentLoading ? 'Processing...' : 'Confirm Pledge'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {donationStep === 'success' && (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
+              <Check className="w-8 h-8" />
+            </div>
+            <h3 className="text-2xl font-display font-bold text-slate-900">Pledge Complete!</h3>
+            <p className="text-xs text-slate-600 max-w-sm mx-auto">
+              Thank you for supporting this campaign! An official digital receipt has been saved to your dashboard.
+            </p>
+            <Button variant="primary" onClick={() => setDonationModalOpen(false)} className="w-full">
+              Close & View Campaign
+            </Button>
+          </div>
+        )}
+      </Modal>
 
       {/* Share Modal */}
       <ShareModal
@@ -513,131 +615,26 @@ export default function CampaignDetail() {
       <Modal isOpen={reportModalOpen} onClose={() => setReportModalOpen(false)} title="Report Campaign">
         <form onSubmit={handleReportSubmit} className="space-y-4">
           <Select
-            label="Reason for reporting"
             value={reportReason}
             onChange={(e) => setReportReason(e.target.value)}
             options={[
-              { label: 'Potential Fraud / Scam', value: 'fraud' },
-              { label: 'Misleading Description', value: 'misleading' },
-              { label: 'Prohibited Content', value: 'prohibited_content' },
-              { label: 'Copyright / Duplicate', value: 'duplicate' },
-              { label: 'Inappropriate Content', value: 'inappropriate' }
+              { label: 'Fraud or Misleading Information', value: 'fraud' },
+              { label: 'Copyright / Intellectual Property Violation', value: 'copyright' },
+              { label: 'Inappropriate or Harmful Content', value: 'inappropriate' },
+              { label: 'Other Concern', value: 'other' }
             ]}
           />
           <Textarea
-            label="Detailed Explanation"
             value={reportDetails}
             onChange={(e) => setReportDetails(e.target.value)}
-            placeholder="Please specify why this campaign violates platform rules..."
+            placeholder="Describe the issue in detail..."
             rows={4}
             required
           />
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setReportModalOpen(false)}
-              className="px-5 py-2.5 rounded-full border border-border-ink/20 text-xs font-bold"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={reportSubmitting}
-              className="px-5 py-2.5 bg-red-600 text-white rounded-full text-xs font-bold hover:bg-red-700 disabled:opacity-50"
-            >
-              {reportSubmitting ? 'Submitting...' : 'Submit Report'}
-            </button>
-          </div>
+          <Button variant="primary" type="submit" disabled={reportSubmitting} className="w-full bg-rose-600 hover:bg-rose-700">
+            {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+          </Button>
         </form>
-      </Modal>
-
-      {/* Donation Checkout Modal */}
-      <Modal
-        isOpen={donationModalOpen}
-        onClose={() => setDonationModalOpen(false)}
-        title={donationStep === 'success' ? 'Contribution Confirmed!' : 'Back This Project'}
-        maxWidth="max-w-lg"
-      >
-        {donationStep === 'amount' && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2">
-                Quick Preset Amount
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {presetAmounts.map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setDonationAmount(amt)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      donationAmount === amt
-                        ? 'bg-text-ink text-white shadow-sm'
-                        : 'bg-black/5 text-text-ink hover:bg-black/10'
-                    }`}
-                  >
-                    ₹{parseInt(amt).toLocaleString('en-IN')}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <CurrencyInput
-              label="Contribution Amount (INR ₹)"
-              value={donationAmount}
-              onChange={(e) => setDonationAmount(e.target.value)}
-            />
-
-            {selectedReward && (
-              <div className="p-4 bg-accent-violet/10 rounded-2xl border border-accent-violet/20 text-xs text-text-ink space-y-1">
-                <span className="font-bold text-accent-violet block">Selected Reward: {selectedReward.title}</span>
-                <p>{selectedReward.description}</p>
-              </div>
-            )}
-
-            <Checkbox
-              label="Make my contribution anonymous to the public"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-            />
-
-            <button
-              onClick={handleConfirmPayment}
-              disabled={paymentLoading}
-              className="w-full py-4 bg-text-ink text-white font-display font-bold rounded-full text-sm hover:opacity-90 disabled:opacity-50 transition-all shadow-md active:scale-95"
-            >
-              {paymentLoading ? 'Processing Payment...' : 'Confirm Pledging'}
-            </button>
-          </div>
-        )}
-
-        {donationStep === 'success' && completedDonation && (
-          <div className="text-center space-y-6 py-4">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
-              ✓
-            </div>
-            <div>
-              <h3 className="text-2xl font-display font-bold text-text-ink mb-2">Thank you for your support!</h3>
-              <p className="text-sm text-text-secondary">
-                Your pledge of <span className="font-bold text-text-ink">₹{parseFloat(donationAmount || '0').toLocaleString('en-IN')}</span> to "{campaign.title}" has been successfully recorded.
-              </p>
-            </div>
-
-            <div className="p-4 bg-black/5 rounded-2xl text-xs text-text-secondary space-y-1 text-left font-mono">
-              <div>Receipt Number: {completedDonation.receipt?.receiptNumber || 'FR-GENERATED'}</div>
-              <div>Status: Succeeded</div>
-            </div>
-
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => setDonationModalOpen(false)}
-                className="px-6 py-3 bg-text-ink text-white font-semibold rounded-full text-xs"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
       </Modal>
     </div>
   )

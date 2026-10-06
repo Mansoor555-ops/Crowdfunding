@@ -1,65 +1,102 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:ital,wght@1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
 @theme {
-  --color-bg-linen: #FAF5F1;
+  --color-bg-canvas: #F8FAFC;
   --color-surface-white: #FFFFFF;
-  --color-text-ink: #1A182B;
-  --color-text-secondary: #716F7E;
-  --color-text-muted: #9693A3;
-  --color-accent-violet: #6E47FF;
-  --color-accent-deep: #150079;
-  --color-accent-peach: #FFBB98;
-  --color-border-ink: #1A182B;
-  --color-gradient-violet-surf: #9E84FF;
+  --color-text-ink: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
 
-  --font-display: "Cabinet Grotesk", "General Sans", "Inter", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-accent: "Lato", sans-serif;
+  --color-brand-emerald: #059669;
+  --color-brand-emerald-dark: #047857;
+  --color-brand-emerald-light: #ECFDF5;
 
-  --radius-card-feature: 32px;
-  --radius-card-faq: 36px;
-  --radius-button-pill: 9999px;
-  --radius-chip-utility: 12px;
+  --color-accent-indigo: #4F46E5;
+  --color-accent-violet: #6366F1;
+  --color-accent-amber: #F59E0B;
+  --color-accent-rose: #E11D48;
+
+  --color-border-subtle: #E2E8F0;
+  --color-border-hover: #CBD5E1;
+
+  --font-display: "Outfit", "Plus Jakarta Sans", sans-serif;
+  --font-body: "Plus Jakarta Sans", "Inter", sans-serif;
+
+  --radius-card: 20px;
+  --radius-button: 14px;
+  --radius-chip: 10px;
 }
 
-/* Custom Base Styles */
+/* Base Styles */
 body {
-  background-color: var(--color-bg-linen);
+  background-color: var(--color-bg-canvas);
   color: var(--color-text-ink);
   font-family: var(--font-body);
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Utilities for Gradients */
-.bg-gradient-feature-card {
-  background: radial-gradient(210.1% 116.78% at 39.65% 0%, #9E84FF 0%, #6E47FF 36.52%, #150079 100%);
-}
-
-.bg-gradient-cta-band {
-  background: radial-gradient(145.58% 104.75% at 52.06% -4.35%, #FFBB98 0%, #FFBB98 6.43%, #9E84FF 50.71%, #6E47FF 80.36%, #150079 100%);
-}
-
-/* UlmGrotesk headline simulation: -4.8px letter-spacing on large display headlines */
+/* Headline display letter-spacing */
 .headline-display {
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.06em; /* maps close to -4.8px at large sizes */
+  font-weight: 800;
+  letter-spacing: -0.03em;
   line-height: 1.1;
 }
 
-/* Transitions */
-.transition-color-border {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }
 
-.transition-press {
-  transition: transform 0.2s cubic-bezier(0, 0, 0.2, 1);
+/* Subtle Shimmer & Glow Effects */
+.glow-emerald {
+  box-shadow: 0 0 40px -10px rgba(5, 150, 105, 0.25);
 }
 
-.transition-press:active {
-  transform: scale(0.96);
+.glow-indigo {
+  box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.25);
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text utility */
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #059669 0%, #0D9488 50%, #2563EB 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-indigo {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

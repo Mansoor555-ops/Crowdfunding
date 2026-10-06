@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function Tabs({ tabs = [], activeTab, onChange, className = '' }) {
   return (
-    <div className={`flex border-b border-border-ink/10 space-x-8 overflow-x-auto no-scrollbar ${className}`}>
+    <div className={`flex border-b border-slate-200/90 space-x-8 overflow-x-auto no-scrollbar font-body ${className}`}>
       {tabs.map((tab) => {
         const key = typeof tab === 'object' ? tab.id : tab
         const label = typeof tab === 'object' ? tab.label : tab
@@ -14,17 +14,17 @@ export function Tabs({ tabs = [], activeTab, onChange, className = '' }) {
           <button
             key={key}
             onClick={() => onChange(key)}
-            className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${
+            className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
               isActive
-                ? 'border-text-ink text-text-ink'
-                : 'border-transparent text-text-secondary hover:text-text-ink hover:border-border-ink/20'
+                ? 'border-emerald-600 text-emerald-700 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
             {label}
             {count !== undefined && (
               <span
                 className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                  isActive ? 'bg-text-ink text-white' : 'bg-border-ink/10 text-text-secondary'
+                  isActive ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
                 {count}
@@ -41,23 +41,23 @@ export function Pagination({ currentPage, totalPages, onPageChange, className = 
   if (totalPages <= 1) return null
 
   return (
-    <div className={`flex items-center justify-center gap-2 py-6 ${className}`}>
+    <div className={`flex items-center justify-center gap-2 py-6 font-body ${className}`}>
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="p-2 rounded-full border border-border-ink/15 text-text-ink hover:bg-black/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
+        className="p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className="w-4 h-4" />
       </button>
 
       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
         <button
           key={page}
           onClick={() => onPageChange(page)}
-          className={`w-10 h-10 rounded-full text-sm font-semibold transition-all ${
+          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             page === currentPage
-              ? 'bg-text-ink text-surface-white'
-              : 'text-text-secondary hover:bg-black/5'
+              ? 'bg-emerald-600 text-white shadow-xs shadow-emerald-600/20'
+              : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           {page}
@@ -67,9 +67,9 @@ export function Pagination({ currentPage, totalPages, onPageChange, className = 
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="p-2 rounded-full border border-border-ink/15 text-text-ink hover:bg-black/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
+        className="p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
       >
-        <ChevronRight className="w-5 h-5" />
+        <ChevronRight className="w-4 h-4" />
       </button>
     </div>
   )
@@ -77,16 +77,16 @@ export function Pagination({ currentPage, totalPages, onPageChange, className = 
 
 export function Breadcrumb({ items = [] }) {
   return (
-    <nav className="flex items-center space-x-2 text-xs text-text-secondary mb-6">
+    <nav className="flex items-center space-x-2 text-xs text-slate-500 mb-6 font-body">
       {items.map((item, idx) => (
         <React.Fragment key={idx}>
-          {idx > 0 && <span className="text-text-muted">/</span>}
+          {idx > 0 && <span className="text-slate-300">/</span>}
           {item.href ? (
-            <a href={item.href} className="hover:text-text-ink transition-colors font-medium">
+            <a href={item.href} className="hover:text-slate-900 transition-colors font-medium">
               {item.label}
             </a>
           ) : (
-            <span className="text-text-ink font-semibold">{item.label}</span>
+            <span className="text-slate-900 font-semibold">{item.label}</span>
           )}
         </React.Fragment>
       ))}
