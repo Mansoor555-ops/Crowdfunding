@@ -33,7 +33,7 @@ export default function Discover() {
     async function fetchCampaigns() {
       setLoading(true)
       try {
-        let endpoint = `/api/campaigns?page=${page}&limit=9&sort=${sort}`
+        let endpoint = `/campaigns?page=${page}&limit=9&sort=${sort}`
         if (category && category !== 'All') endpoint += `&category=${encodeURIComponent(category)}`
         if (search) endpoint += `&search=${encodeURIComponent(search)}`
 

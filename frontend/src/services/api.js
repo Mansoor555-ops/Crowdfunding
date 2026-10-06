@@ -22,7 +22,14 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    const url = endpoint.startsWith('http') ? endpoint : `${API_URL}${endpoint}`;
+    let cleanEndpoint = endpoint;
+    if (!endpoint.startsWith('http') && cleanEndpoint.startsWith('/api/')) {
+      cleanEndpoint = cleanEndpoint.substring(4); // Remove redundant '/api' prefix
+    }
+
+    const url = endpoint.startsWith('http') 
+      ? endpoint 
+      : `${API_URL}${cleanEndpoint.startsWith('/') ? '' : '/'}${cleanEndpoint}`;
     const token = this.getToken();
 
     const headers = {
