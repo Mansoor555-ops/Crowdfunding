@@ -1,3 +1,11 @@
+const dns = require('dns');
+// Set public DNS servers to resolve MongoDB Atlas SRV records on Windows networks if local ISP DNS fails
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch (e) {
+  // Ignore fallback error if environment restricts custom DNS
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -10,7 +18,7 @@ require('dotenv').config();
 const apiRoutes = require('./routes/api');
 
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fundrise';
+const MONGO_URI = process.env.MONGO_URI;
 
 const app = express();
 
@@ -78,37 +86,29 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Database connection manager for MongoDB
+// Database connection manager for Cloud MongoDB (MongoDB Atlas)
 const seedDatabase = require('./utils/seedData');
 
 const connectDB = async () => {
+  if (!MONGO_URI) {
+    console.error('❌ ERROR: MONGO_URI environment variable is not defined in backend/.env file!');
+    console.error('Please set MONGO_URI to your Cloud MongoDB Atlas connection string.');
+    process.exit(1);
+  }
+
   try {
-    console.log(`Attempting to connect to MongoDB at: ${MONGO_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
-    // Short timeout so if local MongoDB service is not started, fallback happens quickly
-    const conn = await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 2500
-    });
-    console.log(`✓ Real MongoDB connected successfully! Host: ${conn.connection.host}`);
+    const maskedUri = MONGO_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+    console.log(`Attempting to connect to Cloud MongoDB at: ${maskedUri}`);
+    
+    const conn = await mongoose.connect(MONGO_URI);
+    console.log(`✓ Cloud MongoDB Atlas connected successfully! Host: ${conn.connection.host}`);
     
     // Seed database if empty
     await seedDatabase();
   } catch (err) {
-    console.warn(`⚠️ Could not connect to local MongoDB at ${MONGO_URI} (${err.message}).`);
-    console.warn('⚡ Launching in-memory fallback database so login and all features work out-of-the-box...');
-    
-    try {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      const mongoServer = await MongoMemoryServer.create({
-        binary: { version: '4.4.25' }
-      });
-      const uri = mongoServer.getUri();
-      console.log(`✓ In-memory MongoDB launched at: ${uri}`);
-      await mongoose.connect(uri);
-      console.log('✓ Connected to in-memory database successfully!');
-      await seedDatabase();
-    } catch (fallbackErr) {
-      console.error('❌ Failed to launch in-memory MongoDB fallback:', fallbackErr.message);
-    }
+    console.error(`❌ Cloud MongoDB connection failed: ${err.message}`);
+    console.error('Please check your MONGO_URI connection string, MongoDB user credentials, and Network IP Access rules in MongoDB Atlas.');
+    process.exit(1);
   }
 };
 
