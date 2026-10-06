@@ -6,10 +6,10 @@ import { Input, Textarea, Select, CurrencyInput } from '../components/ui/Input'
 import { ImageUploader, GalleryUploader } from '../components/ui/ImageUploader'
 import { CampaignCard } from '../components/ui/CampaignCard'
 import { api } from '../services/api'
-import { Check, Plus, Trash2, ArrowLeft, ArrowRight, Save, ShieldCheck } from 'lucide-react'
+import { Check, Plus, Trash2, ArrowLeft, ArrowRight, Save, ShieldCheck, Lock } from 'lucide-react'
 
 export default function CreateCampaign() {
-  const { user } = useContext(AuthContext)
+  const { user, updateUserProfile } = useContext(AuthContext)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -19,6 +19,7 @@ export default function CreateCampaign() {
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [switchingRole, setSwitchingRole] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState('Draft')
 
   // Campaign State
@@ -34,7 +35,7 @@ export default function CreateCampaign() {
   const [coverImage, setCoverImage] = useState('')
   const [gallery, setGallery] = useState([])
   const [rewardTiers, setRewardTiers] = useState([
-    { title: 'Early Bird Backer', description: 'Exclusive early backer access and digital updates.', minimumAmount: '25', estimatedDelivery: 'Dec 2026' }
+    { title: 'Early Bird Backer', description: 'Exclusive early backer access and digital updates.', minimumAmount: '500', estimatedDelivery: 'Dec 2026' }
   ])
 
   // Load saved draft from localStorage
@@ -69,10 +70,56 @@ export default function CreateCampaign() {
     }
   }, [title, category, description, fundingGoal, deadline, coverImage, gallery, rewardTiers])
 
+  const handleRoleUpgrade = async () => {
+    setSwitchingRole(true)
+    try {
+      const res = await api.put('/auth/profile', { role: 'creator' })
+      updateUserProfile(res.user)
+    } catch (err) {
+      alert(err.message || 'Failed to switch account role.')
+    } finally {
+      setSwitchingRole(false)
+    }
+  }
+
+  // Strict Role Guard: Only Creator and Admin can access Campaign Wizard
+  if (user && user.role === 'donor') {
+    return (
+      <div className="min-h-screen pt-32 pb-20 px-6 max-w-xl mx-auto text-center font-body">
+        <div className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-display font-bold text-slate-900">Creator Account Required</h2>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            You are currently signed in as a <strong>Backer (Donor)</strong>. Only registered Creator accounts are authorized to create and publish campaigns.
+          </p>
+          <div className="space-y-3 pt-2">
+            <Button
+              variant="primary"
+              onClick={handleRoleUpgrade}
+              disabled={switchingRole}
+              className="w-full font-bold shadow-md shadow-emerald-600/20"
+            >
+              {switchingRole ? 'Upgrading Account...' : 'Upgrade Account to Creator Mode'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/dashboard')}
+              className="w-full font-bold"
+            >
+              Return to Backer Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const addRewardTier = () => {
     setRewardTiers([
       ...rewardTiers,
-      { title: '', description: '', minimumAmount: '50', estimatedDelivery: '' }
+      { title: '', description: '', minimumAmount: '1000', estimatedDelivery: '' }
     ])
   }
 
@@ -93,7 +140,7 @@ export default function CreateCampaign() {
     } else if (step === 2) {
       if (description.length < 20) return setError('Story description must be at least 20 characters.')
     } else if (step === 3) {
-      if (!fundingGoal || parseFloat(fundingGoal) < 1) return setError('Funding goal must be at least $1.')
+      if (!fundingGoal || parseFloat(fundingGoal) < 1) return setError('Funding goal must be at least ₹1.')
       if (!deadline) return setError('Please specify a valid deadline.')
     } else if (step === 5) {
       if (!coverImage) return setError('Please upload a cover image.')
@@ -101,140 +148,113 @@ export default function CreateCampaign() {
     setStep(step + 1)
   }
 
-  const handlePrev = () => {
+  const handleBack = () => {
     setError('')
     setStep(step - 1)
   }
 
-  const handleSubmit = async (isDraft = false) => {
-    setError('')
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     setLoading(true)
+    setError('')
 
     try {
+      const parsedGoal = parseFloat(fundingGoal)
+      const validRewardTiers = rewardTiers
+        .filter((r) => r.title && r.description && parseFloat(r.minimumAmount) > 0)
+        .map((r) => ({
+          title: r.title,
+          description: r.description,
+          minimumAmount: parseFloat(r.minimumAmount),
+          estimatedDelivery: r.estimatedDelivery || ''
+        }))
+
       const payload = {
         title,
         category,
         description,
-        fundingGoal: parseFloat(fundingGoal),
+        fundingGoal: parsedGoal,
         deadline,
-        coverImage: coverImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+        coverImage,
         gallery,
-        rewardTiers: rewardTiers.map(r => ({
-          ...r,
-          minimumAmount: parseFloat(r.minimumAmount || '1')
-        })),
-        status: isDraft ? 'draft' : 'pending_review'
+        rewardTiers: validRewardTiers
       }
 
       const res = await api.post('/campaigns', payload)
       localStorage.removeItem('fundrise_campaign_draft')
-      alert(isDraft ? 'Draft saved successfully!' : 'Campaign submitted successfully for admin review!')
+
+      alert('Campaign created successfully! It is now live on the marketplace.')
       navigate(`/campaigns/${res.campaign.slug}`)
     } catch (err) {
-      setError(err.message || 'Failed to save campaign.')
+      setError(err.message || 'Failed to submit campaign. Please check required fields.')
     } finally {
       setLoading(false)
     }
   }
 
-  const stepsList = [
-    { num: 1, label: 'Basics' },
-    { num: 2, label: 'Story' },
-    { num: 3, label: 'Funding' },
-    { num: 4, label: 'Rewards' },
-    { num: 5, label: 'Media' },
-    { num: 6, label: 'Preview' },
-    { num: 7, label: 'Submit' }
-  ]
-
-  const mockPreviewCampaign = {
-    _id: 'preview',
-    title: title || 'Untitled Campaign',
-    slug: 'preview',
+  const draftCampaignPreview = {
+    title: title || 'Untitled Campaign Title',
     category,
-    description: description || 'No story details entered yet.',
-    fundingGoal: parseFloat(fundingGoal || '10000'),
+    description: description || 'No project description provided yet.',
+    fundingGoal: parseFloat(fundingGoal) || 100000,
     amountRaised: 0,
-    backersCount: 0,
     deadline: deadline || new Date().toISOString(),
-    coverImage: coverImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+    coverImage: coverImage || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=800',
     creator: { name: user?.name || 'Creator', avatar: user?.avatar },
-    status: 'draft'
+    backersCount: 0,
+    status: 'active'
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-4xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-6 border-b border-border-ink/10 gap-4">
+    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-5xl mx-auto font-body">
+      {/* Step Progress Header */}
+      <div className="mb-10 text-center sm:text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-accent-violet block">
-            Campaign Creator Wizard
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 block mb-1">
+            Creator Campaign Studio • Step {step} of 7
           </span>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-text-ink">Launch Your Campaign</h1>
+          <h1 className="text-3xl font-display font-extrabold text-slate-900">Launch a Campaign</h1>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-text-muted bg-surface-white px-3 py-1.5 rounded-full border border-border-ink/10">
-          <Save className="w-3.5 h-3.5 text-accent-violet" /> Autosave: {autosaveStatus}
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-full self-start">
+          <Save className="w-3.5 h-3.5 text-emerald-600" /> {autosaveStatus}
         </div>
-      </div>
-
-      {/* Progress Steps Header */}
-      <div className="flex items-center justify-between mb-10 overflow-x-auto pb-4 no-scrollbar">
-        {stepsList.map((s) => (
-          <div key={s.num} className="flex items-center gap-2">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                s.num === step
-                  ? 'bg-text-ink text-white shadow-md'
-                  : s.num < step
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-black/5 text-text-muted'
-              }`}
-            >
-              {s.num < step ? <Check className="w-4 h-4" /> : s.num}
-            </div>
-            <span className={`text-xs font-semibold whitespace-nowrap ${s.num === step ? 'text-text-ink' : 'text-text-muted'}`}>
-              {s.label}
-            </span>
-            {s.num < 7 && <div className="w-6 h-px bg-border-ink/10 hidden sm:block" />}
-          </div>
-        ))}
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs font-medium text-red-700 mb-6">
+        <div className="p-4 mb-6 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-2xl">
           {error}
         </div>
       )}
 
-      {/* Wizard Form Panels */}
-      <div className="bg-surface-white p-8 sm:p-10 rounded-3xl border border-border-ink/10 shadow-sm mb-8">
+      {/* Main Wizard Card */}
+      <div className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-xl mb-8 space-y-6">
         {step === 1 && (
           <div className="space-y-6">
-            <h3 className="text-xl font-display font-bold text-text-ink">1. Project Basics</h3>
+            <h2 className="text-xl font-display font-bold text-slate-900">1. Basic Campaign Information</h2>
             <Input
               label="Campaign Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Orbital Key: Zero-Gravity EDC Carabiner"
+              placeholder="e.g. KalaNetra: Preserving Traditional Block Printing Artisans"
               required
             />
             <Select
               label="Category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              options={['Tech', 'Creative', 'Community', 'Charity', 'Education', 'Health', 'Environment', 'Business']}
+              options={['Tech', 'Creative', 'Community', 'Charity', 'Education', 'Environment', 'Health', 'Business']}
             />
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-6">
-            <h3 className="text-xl font-display font-bold text-text-ink">2. Campaign Story</h3>
+            <h2 className="text-xl font-display font-bold text-slate-900">2. Campaign Story & Description</h2>
             <Textarea
-              label="Detailed Pitch & Story"
+              label="Project Story"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Explain why your campaign matters, budget details, timeline, and goals..."
+              placeholder="Describe your vision, budget breakdown, and why backers should support your campaign..."
               rows={8}
               required
             />
@@ -243,15 +263,16 @@ export default function CreateCampaign() {
 
         {step === 3 && (
           <div className="space-y-6">
-            <h3 className="text-xl font-display font-bold text-text-ink">3. Funding & Timeline</h3>
+            <h2 className="text-xl font-display font-bold text-slate-900">3. Funding Target & Timeline</h2>
             <CurrencyInput
-              label="Funding Goal (INR ₹)"
+              label="Target Funding Goal (₹)"
               value={fundingGoal}
               onChange={(e) => setFundingGoal(e.target.value)}
+              placeholder="100000"
               required
             />
             <Input
-              label="Campaign Deadline Date"
+              label="Campaign Deadline"
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
@@ -263,51 +284,54 @@ export default function CreateCampaign() {
         {step === 4 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-display font-bold text-text-ink">4. Reward Tiers</h3>
-              <button
-                type="button"
-                onClick={addRewardTier}
-                className="px-4 py-2 bg-black/5 hover:bg-black/10 text-text-ink rounded-full text-xs font-bold flex items-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> Add Tier
-              </button>
+              <h2 className="text-xl font-display font-bold text-slate-900">4. Reward Tiers</h2>
+              <Button variant="secondary" onClick={addRewardTier} className="h-9 px-4 text-xs font-bold">
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add Reward Tier
+              </Button>
             </div>
 
             {rewardTiers.map((reward, idx) => (
-              <div key={idx} className="p-6 bg-black/[0.02] rounded-2xl border border-border-ink/10 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-bold text-sm text-text-ink">Reward Tier #{idx + 1}</h4>
+              <div key={idx} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Tier #{idx + 1}</span>
                   {rewardTiers.length > 1 && (
-                    <button onClick={() => removeRewardTier(idx)} className="text-red-500 hover:text-red-700 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => removeRewardTier(idx)}
+                      className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
-                <Input
-                  label="Tier Title"
-                  value={reward.title}
-                  onChange={(e) => updateRewardTier(idx, 'title', e.target.value)}
-                  placeholder="e.g. Early Bird Pass"
-                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Reward Title"
+                    value={reward.title}
+                    onChange={(e) => updateRewardTier(idx, 'title', e.target.value)}
+                    placeholder="e.g. Early Supporter Package"
+                  />
+                  <CurrencyInput
+                    label="Minimum Pledge (₹)"
+                    value={reward.minimumAmount}
+                    onChange={(e) => updateRewardTier(idx, 'minimumAmount', e.target.value)}
+                  />
+                </div>
+
                 <Textarea
                   label="Tier Description"
                   value={reward.description}
                   onChange={(e) => updateRewardTier(idx, 'description', e.target.value)}
+                  placeholder="What deliverables or perks do backers receive?"
                   rows={2}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <CurrencyInput
-                    label="Minimum Amount"
-                    value={reward.minimumAmount}
-                    onChange={(e) => updateRewardTier(idx, 'minimumAmount', e.target.value)}
-                  />
-                  <Input
-                    label="Estimated Delivery"
-                    value={reward.estimatedDelivery}
-                    onChange={(e) => updateRewardTier(idx, 'estimatedDelivery', e.target.value)}
-                    placeholder="Dec 2026"
-                  />
-                </div>
+                <Input
+                  label="Estimated Delivery"
+                  value={reward.estimatedDelivery}
+                  onChange={(e) => updateRewardTier(idx, 'estimatedDelivery', e.target.value)}
+                  placeholder="e.g. Nov 2026"
+                />
               </div>
             ))}
           </div>
@@ -315,73 +339,66 @@ export default function CreateCampaign() {
 
         {step === 5 && (
           <div className="space-y-6">
-            <h3 className="text-xl font-display font-bold text-text-ink">5. Media & Uploads</h3>
-            <ImageUploader label="Primary Cover Image" value={coverImage} onChange={setCoverImage} />
-            <GalleryUploader label="Additional Gallery Images" images={gallery} onChange={setGallery} />
+            <h2 className="text-xl font-display font-bold text-slate-900">5. Campaign Media Upload</h2>
+            <ImageUploader
+              label="Main Cover Image (URL)"
+              value={coverImage}
+              onChange={setCoverImage}
+            />
+            <GalleryUploader
+              label="Project Gallery Images"
+              value={gallery}
+              onChange={setGallery}
+            />
           </div>
         )}
 
         {step === 6 && (
           <div className="space-y-6">
-            <h3 className="text-xl font-display font-bold text-text-ink">6. Preview Card</h3>
-            <p className="text-xs text-text-secondary">This is how your campaign will appear on the Discover marketplace:</p>
-            <div className="max-w-md mx-auto">
-              <CampaignCard campaign={mockPreviewCampaign} />
+            <h2 className="text-xl font-display font-bold text-slate-900">6. Live Card Preview</h2>
+            <p className="text-xs text-slate-500">This is how your project card will appear on the discovery marketplace:</p>
+            <div className="max-w-sm mx-auto">
+              <CampaignCard campaign={draftCampaignPreview} />
             </div>
           </div>
         )}
 
         {step === 7 && (
-          <div className="space-y-6 text-center py-6">
-            <div className="w-16 h-16 bg-accent-violet/10 text-accent-violet rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShieldCheck className="w-8 h-8" />
-            </div>
-            <h3 className="text-2xl font-display font-bold text-text-ink">Ready for Submission</h3>
-            <p className="text-sm text-text-secondary max-w-md mx-auto">
-              Submit your campaign for platform review. Administrators will review content guidelines before making it active.
-            </p>
-
-            <div className="flex justify-center gap-4 pt-4">
-              <button
-                type="button"
-                onClick={() => handleSubmit(true)}
-                disabled={loading}
-                className="px-6 py-3 rounded-full border border-border-ink/20 text-xs font-bold text-text-ink hover:bg-black/5"
-              >
-                Save as Draft
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSubmit(false)}
-                disabled={loading}
-                className="px-8 py-3 bg-text-ink text-white rounded-full text-xs font-bold hover:opacity-90 disabled:opacity-50"
-              >
-                {loading ? 'Submitting...' : 'Submit for Review'}
-              </button>
+          <div className="space-y-6">
+            <h2 className="text-xl font-display font-bold text-slate-900">7. Final Review & Launch</h2>
+            <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-800 space-y-2">
+              <span className="font-bold block text-sm">Pre-flight Verification Checklist:</span>
+              <p>✓ All required fields validated</p>
+              <p>✓ Minimum funding goal specified in Indian Rupee (₹)</p>
+              <p>✓ Cover image attached</p>
+              <p>✓ Automatic verification logs enabled</p>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between">
-        {step > 1 ? (
-          <button
-            onClick={handlePrev}
-            className="px-6 py-3 rounded-full border border-border-ink/20 text-xs font-bold text-text-ink flex items-center gap-2 hover:bg-black/5"
-          >
-            <ArrowLeft className="w-4 h-4" /> Previous
-          </button>
-        ) : <div />}
+        {/* Wizard Controls */}
+        <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+          {step > 1 ? (
+            <Button variant="secondary" onClick={handleBack} className="text-xs font-bold">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Previous Step
+            </Button>
+          ) : <div />}
 
-        {step < 7 && (
-          <button
-            onClick={handleNext}
-            className="px-8 py-3 bg-text-ink text-white rounded-full text-xs font-bold flex items-center gap-2 hover:opacity-90"
-          >
-            Next <ArrowRight className="w-4 h-4" />
-          </button>
-        )}
+          {step < 7 ? (
+            <Button variant="primary" onClick={handleNext} className="text-xs font-bold shadow-md shadow-emerald-600/20">
+              Next Step <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="text-xs font-bold px-8 shadow-lg shadow-emerald-600/30"
+            >
+              {loading ? 'Publishing Campaign...' : 'Publish Campaign Live'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -14,22 +14,24 @@ const {
   getUserBookmarks,
   reportCampaign
 } = require('../controllers/campaignController');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
-router.post('/', requireAuth, createCampaign);
+// Public endpoints
 router.get('/', getCampaigns);
 router.get('/stats', getPlatformStats);
 router.get('/bookmarks/my-bookmarks', requireAuth, getUserBookmarks);
 
 router.get('/:slug', getCampaignBySlug);
-router.put('/:id', requireAuth, updateCampaign);
-
-router.post('/:id/updates', requireAuth, addCampaignUpdate);
 router.get('/:id/updates', getCampaignUpdates);
-
 router.get('/:id/comments', getCampaignComments);
-router.post('/:id/comments', requireAuth, addCampaignComment);
 
+// Restricted to Creator and Admin roles ONLY
+router.post('/', requireAuth, requireRole('creator', 'admin'), createCampaign);
+router.put('/:id', requireAuth, requireRole('creator', 'admin'), updateCampaign);
+router.post('/:id/updates', requireAuth, requireRole('creator', 'admin'), addCampaignUpdate);
+
+// Backer & User interaction endpoints
+router.post('/:id/comments', requireAuth, addCampaignComment);
 router.post('/:id/bookmark', requireAuth, toggleBookmark);
 router.post('/:id/report', requireAuth, reportCampaign);
 

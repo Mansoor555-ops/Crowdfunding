@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
-import { Input, Textarea } from '../components/ui/Input'
+import { Input, Textarea, Select } from '../components/ui/Input'
 import { ImageUploader } from '../components/ui/ImageUploader'
 import { Avatar, Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
 import { Tabs } from '../components/ui/Tabs'
 import { api } from '../services/api'
+import { ShieldCheck, User as UserIcon, Sparkles } from 'lucide-react'
 
 export default function Profile() {
   const { user, updateUserProfile } = useContext(AuthContext)
@@ -17,6 +19,7 @@ export default function Profile() {
 
   const [activeTab, setActiveTab] = useState('profile')
   const [name, setName] = useState(user?.name || '')
+  const [role, setRole] = useState(user?.role || 'donor')
   const [bio, setBio] = useState(user?.bio || '')
   const [avatar, setAvatar] = useState(user?.avatar || '')
   const [savingProfile, setSavingProfile] = useState(false)
@@ -33,6 +36,7 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setName(user.name || '')
+      setRole(user.role || 'donor')
       setBio(user.bio || '')
       setAvatar(user.avatar || '')
     }
@@ -43,9 +47,9 @@ export default function Profile() {
     setSavingProfile(true)
     setProfileMsg('')
     try {
-      const res = await api.put('/auth/profile', { name, bio, avatar })
+      const res = await api.put('/auth/profile', { name, role, bio, avatar })
       updateUserProfile(res.user)
-      setProfileMsg('Profile details updated successfully.')
+      setProfileMsg('Profile and account role updated successfully.')
     } catch (err) {
       setProfileMsg(err.message || 'Failed to update profile.')
     } finally {
@@ -81,17 +85,19 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-4xl mx-auto">
+    <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-4xl mx-auto font-body">
       {/* Header Profile Summary */}
-      <div className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 shadow-sm mb-10 flex flex-col sm:flex-row items-center gap-6">
+      <div className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm mb-10 flex flex-col sm:flex-row items-center gap-6">
         <Avatar src={avatar} name={name} size="xl" />
         <div className="space-y-1 text-center sm:text-left flex-1">
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-            <h1 className="text-2xl font-display font-bold text-text-ink">{name}</h1>
-            <Badge variant="active">{user?.role}</Badge>
+            <h1 className="text-2xl font-display font-bold text-slate-900">{name}</h1>
+            <Badge variant="active" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+              {role === 'donor' ? 'Backer (Donor)' : role === 'creator' ? 'Verified Creator' : 'Administrator'}
+            </Badge>
           </div>
-          <p className="text-xs text-text-secondary">{user?.email}</p>
-          {bio && <p className="text-xs text-text-muted pt-1 max-w-md">{bio}</p>}
+          <p className="text-xs text-slate-500">{user?.email}</p>
+          {bio && <p className="text-xs text-slate-600 pt-1 max-w-md">{bio}</p>}
         </div>
       </div>
 
@@ -99,7 +105,7 @@ export default function Profile() {
       <div className="mb-8">
         <Tabs
           tabs={[
-            { id: 'profile', label: 'Profile Information' },
+            { id: 'profile', label: 'Profile & Account Role' },
             { id: 'security', label: 'Security & Password' }
           ]}
           activeTab={activeTab}
@@ -108,33 +114,48 @@ export default function Profile() {
       </div>
 
       {activeTab === 'profile' && (
-        <form onSubmit={handleSaveProfile} className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 space-y-6">
-          <h3 className="text-xl font-display font-bold text-text-ink">Update Personal Info</h3>
+        <form onSubmit={handleSaveProfile} className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-6">
+          <h3 className="text-xl font-display font-bold text-slate-900">Account Details & Role</h3>
 
           {profileMsg && <p className="text-xs font-semibold text-emerald-600">{profileMsg}</p>}
 
           <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
+
+          {/* Account Role Selector */}
+          {user?.role !== 'admin' && (
+            <Select
+              label="Account Role Type"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              options={[
+                { label: '🎁 Backer Account (Fund projects, save bookmarks & receive rewards)', value: 'donor' },
+                { label: '🚀 Creator Account (Create campaigns, post updates & request payouts)', value: 'creator' }
+              ]}
+            />
+          )}
+
           <ImageUploader label="Avatar Photo" value={avatar} onChange={setAvatar} />
           <Textarea label="Bio Summary" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
 
           <div className="flex justify-end pt-4">
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={savingProfile}
-              className="px-8 py-3 bg-text-ink text-white rounded-full text-xs font-bold hover:opacity-90 disabled:opacity-50"
+              className="px-8 font-bold"
             >
               {savingProfile ? 'Saving...' : 'Save Profile Changes'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {activeTab === 'security' && (
-        <form onSubmit={handleChangePassword} className="p-8 bg-surface-white rounded-3xl border border-border-ink/10 space-y-6">
-          <h3 className="text-xl font-display font-bold text-text-ink">Change Password</h3>
+        <form onSubmit={handleChangePassword} className="p-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-6">
+          <h3 className="text-xl font-display font-bold text-slate-900">Change Password</h3>
 
           {passwordMsg && <p className="text-xs font-semibold text-emerald-600">{passwordMsg}</p>}
-          {passwordErr && <p className="text-xs font-semibold text-red-600">{passwordErr}</p>}
+          {passwordErr && <p className="text-xs font-semibold text-rose-600">{passwordErr}</p>}
 
           <Input
             label="Current Password"
@@ -159,13 +180,14 @@ export default function Profile() {
           />
 
           <div className="flex justify-end pt-4">
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={savingPassword}
-              className="px-8 py-3 bg-text-ink text-white rounded-full text-xs font-bold hover:opacity-90 disabled:opacity-50"
+              className="px-8 font-bold"
             >
               {savingPassword ? 'Updating...' : 'Update Password'}
-            </button>
+            </Button>
           </div>
         </form>
       )}

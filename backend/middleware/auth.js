@@ -57,10 +57,10 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-const requireRole = (role) => {
+const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user || req.user.role !== role) {
-      return res.status(403).json({ error: `Access denied. ${role} privileges required.` });
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: `Access denied. Only registered ${allowedRoles.join(' or ')} accounts can perform this action.` });
     }
     next();
   };

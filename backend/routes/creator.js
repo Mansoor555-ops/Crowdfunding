@@ -7,9 +7,11 @@ const {
   requestPayout, 
   getCreatorPayouts 
 } = require('../controllers/creatorController');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
+// Require authentication and Creator/Admin role for all creator endpoints
 router.use(requireAuth);
+router.use(requireRole('creator', 'admin'));
 
 router.get('/stats', getCreatorStats);
 router.get('/campaigns', getCreatorCampaigns);

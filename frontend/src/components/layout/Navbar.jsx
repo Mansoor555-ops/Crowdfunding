@@ -149,19 +149,26 @@ export function Navbar() {
                 </Link>
               )}
 
-              {(user.role === 'creator' || user.role === 'admin') && (
-                <Link to="/creator">
-                  <Button variant="nav-secondary" className="flex items-center gap-1.5 text-xs font-bold">
-                    <PlusCircle className="w-4 h-4 text-emerald-600" /> Creator Hub
+              {(user.role === 'creator' || user.role === 'admin') ? (
+                <>
+                  <Link to="/creator">
+                    <Button variant="nav-secondary" className="flex items-center gap-1.5 text-xs font-bold">
+                      <PlusCircle className="w-4 h-4 text-emerald-600" /> Creator Hub
+                    </Button>
+                  </Link>
+                  <Link to="/campaigns/new">
+                    <Button variant="nav-primary" className="text-xs font-semibold shadow-sm">
+                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Start Project
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <Link to="/discover">
+                  <Button variant="nav-primary" className="text-xs font-semibold shadow-sm">
+                    <Compass className="w-3.5 h-3.5 mr-1" /> Explore Projects
                   </Button>
                 </Link>
               )}
-
-              <Link to="/campaigns/new">
-                <Button variant="nav-primary" className="text-xs font-semibold shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5 mr-1" /> Start Project
-                </Button>
-              </Link>
 
               <Link to="/notifications" className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors rounded-xl hover:bg-slate-100">
                 <Bell className="w-4 h-4" />
