@@ -18,7 +18,7 @@ require('dotenv').config();
 const apiRoutes = require('./routes/api');
 
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/fundrise';
+const MONGO_URI = process.env.MONGO_URI;
 
 const app = express();
 
@@ -86,36 +86,24 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Database connection manager for Cloud MongoDB with In-Memory Fallback
-const seedDatabase = require('./utils/seedData');
-
+// Database connection manager for Cloud MongoDB (MongoDB Atlas)
 const connectDB = async () => {
+  if (!MONGO_URI) {
+    console.error('❌ ERROR: MONGO_URI environment variable is not defined in backend/.env file!');
+    console.error('Please set MONGO_URI to your Cloud MongoDB Atlas connection string.');
+    process.exit(1);
+  }
+
   try {
     const maskedUri = MONGO_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
-    console.log(`Attempting to connect to MongoDB at: ${maskedUri}`);
+    console.log(`Attempting to connect to Cloud MongoDB at: ${maskedUri}`);
     
-    const conn = await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 3000
-    });
-    console.log(`✓ MongoDB connected successfully! Host: ${conn.connection.host}`);
-    
-    // Seed database if empty
-    await seedDatabase();
+    const conn = await mongoose.connect(MONGO_URI);
+    console.log(`✓ Cloud MongoDB Atlas connected successfully! Host: ${conn.connection.host}`);
   } catch (err) {
-    console.warn(`⚠️ Primary MongoDB connection failed (${err.message}).`);
-    console.warn('⚡ Launching in-memory fallback database so all features work out-of-the-box...');
-    
-    try {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      const mongoServer = await MongoMemoryServer.create();
-      const uri = mongoServer.getUri();
-      console.log(`✓ In-memory MongoDB launched at: ${uri}`);
-      await mongoose.connect(uri);
-      console.log('✓ Connected to in-memory database successfully!');
-      await seedDatabase();
-    } catch (fallbackErr) {
-      console.error('❌ Failed to launch in-memory MongoDB fallback:', fallbackErr.message);
-    }
+    console.error(`❌ Cloud MongoDB connection failed: ${err.message}`);
+    console.error('Please check your MONGO_URI connection string, MongoDB user credentials, and Network IP Access rules in MongoDB Atlas.');
+    process.exit(1);
   }
 };
 
