@@ -12,12 +12,19 @@ import { api } from '../services/api'
 import { io } from 'socket.io-client'
 import confetti from 'canvas-confetti'
 import {
+  Heart,
+  Users,
+  Clock,
   Bookmark,
   Share2,
+  Check,
   ShieldCheck,
   Flag,
   Send,
-  Package
+  Package,
+  Award,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react'
 
 export default function CampaignDetail() {
@@ -31,6 +38,7 @@ export default function CampaignDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('story') // 'story' | 'rewards' | 'updates' | 'comments'
+  const [showStickyBar, setShowStickyBar] = useState(false)
 
   // Social & Bookmark
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -56,6 +64,14 @@ export default function CampaignDetail() {
   const [commentSubmitting, setCommentSubmitting] = useState(false)
 
   useEffect(() => {
+    const handleScroll = () => {
+      setShowStickyBar(window.scrollY > 500)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
     async function loadCampaign() {
       setLoading(true)
       setError('')
@@ -63,7 +79,6 @@ export default function CampaignDetail() {
         const data = await api.get(`/campaigns/${slug}`)
         setCampaign(data.campaign)
 
-        // Load parallel resources
         const [donRes, commRes, updRes] = await Promise.all([
           api.get(`/donations/campaign/${data.campaign._id}`).catch(() => ({ donations: [] })),
           api.get(`/campaigns/${data.campaign._id}/comments`).catch(() => ({ comments: [] })),
@@ -87,7 +102,6 @@ export default function CampaignDetail() {
     loadCampaign()
   }, [slug, user])
 
-  // Socket.io for live donation notifications
   useEffect(() => {
     if (!campaign) return
 
@@ -137,10 +151,9 @@ export default function CampaignDetail() {
     try {
       const amountNum = parseFloat(donationAmount)
       if (isNaN(amountNum) || amountNum < 1) {
-        throw new Error('Please enter a valid donation amount of at least $1.')
+        throw new Error('Please enter a valid donation amount of at least ₹1.')
       }
 
-      // Step 1: Create Intent
       const intentData = await api.post('/donations/intent', {
         campaignId: campaign._id,
         amount: amountNum,
@@ -148,13 +161,11 @@ export default function CampaignDetail() {
         rewardTier: selectedReward ? selectedReward.title : undefined
       })
 
-      // Step 2: Confirm mock payment
       const confirmData = await api.post('/donations/mock-confirm', {
         paymentIntentId: intentData.paymentIntentId
       })
 
-      // Trigger Confetti
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } })
 
       setCompletedDonation(confirmData)
       setDonationStep('success')
@@ -229,6 +240,8 @@ export default function CampaignDetail() {
   const deadlineDate = new Date(campaign.deadline)
   const daysRemaining = Math.max(0, Math.ceil((deadlineDate - new Date()) / (1000 * 60 * 60 * 24)))
 
+  const presetAmounts = ['500', '1000', '2500', '5000', '10000']
+
   return (
     <div className="min-h-screen pt-28 pb-20 px-6 lg:px-12 max-w-7xl mx-auto">
       {/* Campaign Header Title */}
@@ -290,7 +303,7 @@ export default function CampaignDetail() {
               <button
                 onClick={() => handleInitiateDonation()}
                 disabled={campaign.status !== 'active'}
-                className="w-full py-4 bg-text-ink hover:opacity-90 disabled:opacity-50 text-white font-display font-bold rounded-full text-base tracking-wide transition-all shadow-md"
+                className="w-full py-4 bg-text-ink hover:opacity-90 disabled:opacity-50 text-white font-display font-bold rounded-full text-base tracking-wide transition-all shadow-md active:scale-95"
               >
                 {campaign.status === 'active' ? 'Back This Project' : 'Campaign Closed'}
               </button>
@@ -467,6 +480,27 @@ export default function CampaignDetail() {
         </div>
       </div>
 
+      {/* Sticky Bottom Quick Donate Floating Bar */}
+      {showStickyBar && campaign.status === 'active' && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-3xl bg-surface-white/95 backdrop-blur-md p-4 rounded-full border border-border-ink/10 shadow-2xl flex items-center justify-between gap-4 transition-all animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <img src={campaign.coverImage} alt={campaign.title} className="w-10 h-10 rounded-full object-cover shrink-0" />
+            <div className="truncate">
+              <h4 className="font-display font-bold text-sm text-text-ink truncate">{campaign.title}</h4>
+              <p className="text-xs text-accent-violet font-semibold">
+                ₹{(campaign.amountRaised || 0).toLocaleString('en-IN')} raised ({percentage}%)
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleInitiateDonation()}
+            className="px-6 py-2.5 bg-text-ink text-white font-display font-bold text-xs rounded-full hover:opacity-90 shrink-0 shadow-md"
+          >
+            Back This Project
+          </button>
+        </div>
+      )}
+
       {/* Share Modal */}
       <ShareModal
         isOpen={shareModalOpen}
@@ -526,6 +560,28 @@ export default function CampaignDetail() {
       >
         {donationStep === 'amount' && (
           <div className="space-y-6">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2">
+                Quick Preset Amount
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {presetAmounts.map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setDonationAmount(amt)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      donationAmount === amt
+                        ? 'bg-text-ink text-white shadow-sm'
+                        : 'bg-black/5 text-text-ink hover:bg-black/10'
+                    }`}
+                  >
+                    ₹{parseInt(amt).toLocaleString('en-IN')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <CurrencyInput
               label="Contribution Amount (INR ₹)"
               value={donationAmount}
@@ -548,7 +604,7 @@ export default function CampaignDetail() {
             <button
               onClick={handleConfirmPayment}
               disabled={paymentLoading}
-              className="w-full py-4 bg-text-ink text-white font-display font-bold rounded-full text-sm hover:opacity-90 disabled:opacity-50 transition-all"
+              className="w-full py-4 bg-text-ink text-white font-display font-bold rounded-full text-sm hover:opacity-90 disabled:opacity-50 transition-all shadow-md active:scale-95"
             >
               {paymentLoading ? 'Processing Payment...' : 'Confirm Pledging'}
             </button>
