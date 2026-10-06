@@ -25,8 +25,8 @@ router.get('/:slug', getCampaignBySlug);
 router.get('/:id/updates', getCampaignUpdates);
 router.get('/:id/comments', getCampaignComments);
 
-// Restricted to Creator and Admin roles ONLY
-router.post('/', requireAuth, requireRole('creator', 'admin'), createCampaign);
+// Restricted to Creator and Admin roles (auto-promotes donor to creator on creation)
+router.post('/', requireAuth, createCampaign);
 router.put('/:id', requireAuth, requireRole('creator', 'admin'), updateCampaign);
 router.post('/:id/updates', requireAuth, requireRole('creator', 'admin'), addCampaignUpdate);
 

@@ -9,22 +9,34 @@ const Donation = require('../models/Donation');
 const campaignCreateSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(100).trim(),
   description: z.string().min(20, 'Description must be at least 20 characters').trim(),
-  category: z.enum(['Creative', 'Tech', 'Community', 'Charity', 'Education']),
+  category: z.enum(['Creative', 'Tech', 'Community', 'Charity', 'Education', 'Health', 'Environment', 'Business', 'Other']),
   fundingGoal: z.number().min(1, 'Funding goal must be at least 1'),
   deadline: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid deadline date' }),
-  coverImage: z.string().url('Cover image must be a valid URL'),
-  gallery: z.array(z.string().url()).optional()
+  coverImage: z.string().min(1, 'Cover image is required'),
+  gallery: z.array(z.string()).optional(),
+  rewardTiers: z.array(z.object({
+    title: z.string().min(1, 'Reward title is required'),
+    description: z.string().min(1, 'Reward description is required'),
+    minimumAmount: z.number().min(1, 'Minimum pledge amount must be at least 1'),
+    estimatedDelivery: z.string().optional()
+  })).optional()
 });
 
 // Schema validation for updating a campaign
 const campaignUpdateSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(100).trim().optional(),
   description: z.string().min(20, 'Description must be at least 20 characters').trim().optional(),
-  category: z.enum(['Creative', 'Tech', 'Community', 'Charity', 'Education']).optional(),
+  category: z.enum(['Creative', 'Tech', 'Community', 'Charity', 'Education', 'Health', 'Environment', 'Business', 'Other']).optional(),
   fundingGoal: z.number().min(1).optional(),
   deadline: z.string().refine((val) => !isNaN(Date.parse(val))).optional(),
-  coverImage: z.string().url().optional(),
-  gallery: z.array(z.string().url()).optional(),
+  coverImage: z.string().optional(),
+  gallery: z.array(z.string()).optional(),
+  rewardTiers: z.array(z.object({
+    title: z.string(),
+    description: z.string(),
+    minimumAmount: z.number(),
+    estimatedDelivery: z.string().optional()
+  })).optional(),
   status: z.enum(['draft', 'active', 'funded', 'expired', 'cancelled']).optional()
 });
 
@@ -32,7 +44,7 @@ const campaignUpdateSchema = z.object({
 const campaignUpdatePostSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(100).trim(),
   content: z.string().min(10, 'Content must be at least 10 characters').trim(),
-  images: z.array(z.string().url()).optional()
+  images: z.array(z.string()).optional()
 });
 
 // Schema validation for comments
@@ -50,7 +62,7 @@ const createCampaign = async (req, res) => {
       return res.status(400).json({ error: parseResult.error.errors[0].message });
     }
 
-    const { title, description, category, fundingGoal, deadline, coverImage, gallery } = parseResult.data;
+    const { title, description, category, fundingGoal, deadline, coverImage, gallery, rewardTiers } = parseResult.data;
 
     // Check if title already used to avoid duplicate slugs
     const slugBase = title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
@@ -70,6 +82,7 @@ const createCampaign = async (req, res) => {
       deadline,
       coverImage,
       gallery: gallery || [],
+      rewardTiers: rewardTiers || [],
       creator: req.user._id
     });
 
@@ -87,7 +100,8 @@ const createCampaign = async (req, res) => {
       userRole: req.user ? req.user.role : 'creator'
     });
   } catch (err) {
-    res.status(500).json({ error: 'Server error during campaign creation.' });
+    console.error('Error creating campaign:', err);
+    res.status(500).json({ error: err.message || 'Server error during campaign creation.' });
   }
 };
 

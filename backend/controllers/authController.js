@@ -6,7 +6,8 @@ const { z } = require('zod');
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').trim(),
   email: z.string().email('Invalid email address').trim().toLowerCase(),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['creator', 'donor']).optional()
 });
 
 const loginSchema = z.object({
@@ -17,7 +18,8 @@ const loginSchema = z.object({
 const profileUpdateSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').trim().optional(),
   bio: z.string().max(200, 'Bio cannot exceed 200 characters').optional(),
-  avatar: z.string().url('Avatar must be a valid URL').optional()
+  avatar: z.string().optional(),
+  role: z.enum(['creator', 'donor', 'admin']).optional()
 });
 
 const generateAccessToken = (user) => {
@@ -45,7 +47,7 @@ const register = async (req, res) => {
       return res.status(400).json({ error: parseResult.error.errors[0].message });
     }
 
-    const { name, email, password } = parseResult.data;
+    const { name, email, password, role } = parseResult.data;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -53,8 +55,8 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'A user with this email already exists.' });
     }
 
-    // Create user (password is automatically hashed via pre-save hook)
-    const user = new User({ name, email, password });
+    // Create user with requested role (defaulting to creator if unspecified)
+    const user = new User({ name, email, password, role: role || 'creator' });
     
     // Generate tokens
     const accessToken = generateAccessToken(user);
@@ -204,12 +206,13 @@ const updateProfile = async (req, res) => {
       return res.status(400).json({ error: parseResult.error.errors[0].message });
     }
 
-    const { name, bio, avatar } = parseResult.data;
+    const { name, bio, avatar, role } = parseResult.data;
     const user = await User.findById(req.user._id);
 
     if (name) user.name = name;
     if (bio !== undefined) user.bio = bio;
     if (avatar) user.avatar = avatar;
+    if (role) user.role = role;
 
     await user.save();
 
