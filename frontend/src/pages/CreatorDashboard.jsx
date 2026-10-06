@@ -9,7 +9,7 @@ import { Skeleton, EmptyState } from '../components/ui/Progress'
 import { Badge, Avatar } from '../components/ui/Badge'
 import { api } from '../services/api'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { PlusCircle, Wallet, TrendingUp, Users, Send, Check, AlertCircle, Clock, Package } from 'lucide-react'
+import { PlusCircle, Wallet, TrendingUp, Users, Package } from 'lucide-react'
 
 export default function CreatorDashboard() {
   const { user } = useContext(AuthContext)

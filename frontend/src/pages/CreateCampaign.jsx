@@ -6,7 +6,7 @@ import { Input, Textarea, Select, CurrencyInput } from '../components/ui/Input'
 import { ImageUploader, GalleryUploader } from '../components/ui/ImageUploader'
 import { CampaignCard } from '../components/ui/CampaignCard'
 import { api } from '../services/api'
-import { Check, Plus, Trash2, ArrowLeft, ArrowRight, Save, Sparkles, ShieldCheck } from 'lucide-react'
+import { Check, Plus, Trash2, ArrowLeft, ArrowRight, Save, ShieldCheck } from 'lucide-react'
 
 export default function CreateCampaign() {
   const { user } = useContext(AuthContext)

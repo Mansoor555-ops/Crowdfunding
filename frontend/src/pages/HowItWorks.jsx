@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Reveal } from '../components/ui/Reveal'
-import { CheckCircle2, UserCheck, Shield, Rocket, HelpCircle } from 'lucide-react'
 
 export default function HowItWorks() {
   return (

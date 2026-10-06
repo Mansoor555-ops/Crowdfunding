@@ -78,35 +78,36 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Database connection with In-Memory fallback
-const { MongoMemoryServer } = require('mongodb-memory-server');
-let mongoServer;
-
+// Database connection manager for MongoDB
 const seedDatabase = require('./utils/seedData');
 
 const connectDB = async () => {
   try {
-    // Set a short connection timeout so it fails quickly and switches to memory server in dev
-    await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 3000
+    console.log(`Attempting to connect to MongoDB at: ${MONGO_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
+    // Short timeout so if local MongoDB service is not started, fallback happens quickly
+    const conn = await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 2500
     });
-    console.log('MongoDB connected successfully');
+    console.log(`✓ Real MongoDB connected successfully! Host: ${conn.connection.host}`);
+    
+    // Seed database if empty
     await seedDatabase();
   } catch (err) {
-    console.warn('Failed to connect to local MongoDB. Launching in-memory fallback database...');
+    console.warn(`⚠️ Could not connect to local MongoDB at ${MONGO_URI} (${err.message}).`);
+    console.warn('⚡ Launching in-memory fallback database so login and all features work out-of-the-box...');
+    
     try {
-      mongoServer = await MongoMemoryServer.create({
-        binary: {
-          version: '4.4.25' // Much smaller download footprint (around 50-60mb) than default 8.x
-        }
+      const { MongoMemoryServer } = require('mongodb-memory-server');
+      const mongoServer = await MongoMemoryServer.create({
+        binary: { version: '4.4.25' }
       });
       const uri = mongoServer.getUri();
-      console.log(`In-memory MongoDB Server launched successfully at: ${uri}`);
+      console.log(`✓ In-memory MongoDB launched at: ${uri}`);
       await mongoose.connect(uri);
-      console.log('Connected to fallback in-memory MongoDB!');
+      console.log('✓ Connected to in-memory database successfully!');
       await seedDatabase();
     } catch (fallbackErr) {
-      console.warn('Failed to launch in-memory MongoDB fallback. Server will remain active on port 5000 in offline-database mode.');
+      console.error('❌ Failed to launch in-memory MongoDB fallback:', fallbackErr.message);
     }
   }
 };

@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext'
 import { Button } from '../components/ui/Button'
 import { ProgressBar, Skeleton, EmptyState } from '../components/ui/Progress'
 import { Badge, Avatar } from '../components/ui/Badge'
-import { Modal, ConfirmationDialog } from '../components/ui/Modal'
+import { Modal } from '../components/ui/Modal'
 import { Input, CurrencyInput, Textarea, Checkbox, Select } from '../components/ui/Input'
 import { Tabs } from '../components/ui/Tabs'
 import { ShareModal } from '../components/ui/ShareModal'
@@ -12,22 +12,12 @@ import { api } from '../services/api'
 import { io } from 'socket.io-client'
 import confetti from 'canvas-confetti'
 import {
-  Heart,
-  Users,
-  Clock,
   Bookmark,
   Share2,
-  Check,
   ShieldCheck,
   Flag,
-  MessageSquare,
-  Sparkles,
   Send,
-  Package,
-  Award,
-  ChevronRight,
-  AlertTriangle,
-  Receipt
+  Package
 } from 'lucide-react'
 
 export default function CampaignDetail() {

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { Bell, CheckCheck, Sparkles, AlertCircle, ArrowRight } from 'lucide-react'
+import { Bell, CheckCheck, Sparkles, ArrowRight } from 'lucide-react'
 
 export default function Notifications() {
   const { user, authFetch } = useContext(AuthContext)

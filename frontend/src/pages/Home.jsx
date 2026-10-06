@@ -20,7 +20,6 @@ import {
   Cpu,
   Palette,
   Users,
-  Building,
   TreePine,
   GraduationCap
 } from 'lucide-react'

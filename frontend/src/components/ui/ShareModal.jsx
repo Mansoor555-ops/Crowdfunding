@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { Card } from './Card'
-import { Button } from './Button'
 import { Copy, Check, Share2, X } from 'lucide-react'
 
 export function ShareModal({ campaign, isOpen, onClose }) {

@@ -25,7 +25,7 @@ export function ImageUploader({ label, value, onChange, error, className = '' })
 
     try {
       const formData = new FormData()
-      formData.append('image', file)
+      formData.append('file', file)
 
       const data = await api.post('/uploads', formData)
       if (data.url) {
@@ -98,7 +98,7 @@ export function GalleryUploader({ images = [], onChange, label, className = '' }
       const uploadedUrls = []
       for (const file of files) {
         const formData = new FormData()
-        formData.append('image', file)
+        formData.append('file', file)
         const data = await api.post('/uploads', formData)
         if (data.url) uploadedUrls.push(data.url)
       }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function Tabs({ tabs = [], activeTab, onChange, className = '' }) {
   return (

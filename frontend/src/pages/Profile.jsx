@@ -6,7 +6,6 @@ import { ImageUploader } from '../components/ui/ImageUploader'
 import { Avatar, Badge } from '../components/ui/Badge'
 import { Tabs } from '../components/ui/Tabs'
 import { api } from '../services/api'
-import { Check, ShieldAlert, Key, User as UserIcon } from 'lucide-react'
 
 export default function Profile() {
   const { user, updateUserProfile } = useContext(AuthContext)

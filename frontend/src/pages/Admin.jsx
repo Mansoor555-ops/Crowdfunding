@@ -4,11 +4,11 @@ import { AuthContext } from '../context/AuthContext'
 import { Stat, DataTable } from '../components/ui/DataTable'
 import { Tabs } from '../components/ui/Tabs'
 import { Modal } from '../components/ui/Modal'
-import { Input, Select, Textarea, SearchInput } from '../components/ui/Input'
-import { Skeleton, EmptyState } from '../components/ui/Progress'
+import { Input, Select, Textarea } from '../components/ui/Input'
+import { Skeleton } from '../components/ui/Progress'
 import { Badge, Avatar } from '../components/ui/Badge'
 import { api } from '../services/api'
-import { ShieldCheck, Users, DollarSign, Flag, FileText, Check, X, AlertTriangle, Eye, Ban } from 'lucide-react'
+import { ShieldCheck, Users, DollarSign, AlertTriangle } from 'lucide-react'
 
 export default function Admin() {
   const { user } = useContext(AuthContext)

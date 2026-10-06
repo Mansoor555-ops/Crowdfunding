@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import io from 'socket.io-client'
+import { io } from 'socket.io-client'
 import { Sparkles, X } from 'lucide-react'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'

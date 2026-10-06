@@ -7,16 +7,25 @@ const Bookmark = require('../models/Bookmark');
 
 const seedDatabase = async () => {
   try {
-    const userCount = await User.countDocuments();
-    if (userCount > 0) {
-      console.log('Database already has data. Skipping automatic seeding.');
+    const campaignCount = await Campaign.countDocuments();
+    if (campaignCount > 0) {
+      console.log('Database already has seeded campaigns. Skipping automatic seeding.');
       return;
     }
 
     console.log('Seeding database with mock creators, campaigns, comments, and donations...');
 
-    // 1. Create Users
-    const creatorUser = new User({
+    const getOrCreateUser = async (userData) => {
+      const existingUser = await User.findOne({ email: userData.email });
+      if (existingUser) return existingUser;
+
+      const user = new User(userData);
+      await user.save();
+      return user;
+    };
+
+    // 1. Create or reuse Users
+    const creatorUser = await getOrCreateUser({
       name: 'Elena Rostova',
       email: 'creator@fundrise.com',
       password: 'password123',
@@ -24,9 +33,8 @@ const seedDatabase = async () => {
       bio: 'Industrial Designer & Publisher based in Copenhagen. Focused on tactile materials and sleek product engineering.',
       role: 'creator'
     });
-    await creatorUser.save();
 
-    const donorUser = new User({
+    const donorUser = await getOrCreateUser({
       name: 'Mansoor Ahmed',
       email: 'donor@fundrise.com',
       password: 'password123',
@@ -34,9 +42,8 @@ const seedDatabase = async () => {
       bio: 'Technology enthusiast and startup backer. Passionate about green tech and tactile physical print.',
       role: 'donor'
     });
-    await donorUser.save();
 
-    const adminUser = new User({
+    const adminUser = await getOrCreateUser({
       name: 'Platform Compliance',
       email: 'admin@fundrise.com',
       password: 'password123',
@@ -44,7 +51,6 @@ const seedDatabase = async () => {
       bio: 'FundRise compliance auditor team.',
       role: 'admin'
     });
-    await adminUser.save();
 
     // 2. Create 6 Rich Campaigns
     const campaignsData = [
@@ -140,8 +146,11 @@ const seedDatabase = async () => {
     const seededCampaigns = [];
     for (const data of campaignsData) {
       const slug = data.title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
-      const campaign = new Campaign({ ...data, slug });
-      await campaign.save();
+      const existingCampaign = await Campaign.findOne({ title: data.title });
+      const campaign = existingCampaign || new Campaign({ ...data, slug });
+      if (!existingCampaign) {
+        await campaign.save();
+      }
       seededCampaigns.push(campaign);
     }
 

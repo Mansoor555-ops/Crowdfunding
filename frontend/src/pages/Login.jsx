@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
-import { ShieldAlert, ArrowLeft } from 'lucide-react'
+import { ShieldAlert } from 'lucide-react'
 import { api } from '../services/api'
 
 export default function Login() {
@@ -61,6 +61,34 @@ export default function Login() {
           </Link>
           <h2 className="text-xl font-display font-bold text-text-ink">Welcome back</h2>
           <p className="text-xs text-text-secondary">Sign in to access your crowdfunding dashboard</p>
+        </div>
+
+        {/* Quick Demo Credentials */}
+        <div className="bg-bg-linen/80 border border-border-ink/10 p-3.5 rounded-2xl space-y-2">
+          <p className="text-[11px] font-semibold text-text-secondary">Quick Demo Sign-In (Click to auto-fill):</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => { setEmail('creator@fundrise.com'); setPassword('password123'); }}
+              className="px-2.5 py-1 bg-accent-violet/10 text-accent-violet text-[11px] font-bold rounded-lg hover:bg-accent-violet/20 transition-colors"
+            >
+              Creator
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('donor@fundrise.com'); setPassword('password123'); }}
+              className="px-2.5 py-1 bg-emerald-500/10 text-emerald-700 text-[11px] font-bold rounded-lg hover:bg-emerald-500/20 transition-colors"
+            >
+              Backer
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('admin@fundrise.com'); setPassword('password123'); }}
+              className="px-2.5 py-1 bg-amber-500/10 text-amber-800 text-[11px] font-bold rounded-lg hover:bg-amber-500/20 transition-colors"
+            >
+              Admin
+            </button>
+          </div>
         </div>
 
         {error && (
