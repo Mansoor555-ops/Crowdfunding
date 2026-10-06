@@ -65,10 +65,8 @@ npm install
 Create a `.env` file in the `/backend` folder:
 ```env
 PORT=5000
-# Connect to local MongoDB instance or MongoDB Atlas Cloud cluster
-MONGO_URI=mongodb://127.0.0.1:27017/fundrise
-# Example Atlas Cloud URI:
-# MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/fundrise?retryWrites=true&w=majority
+# Cloud MongoDB Atlas connection string:
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/fundrise?retryWrites=true&w=majority
 
 JWT_ACCESS_SECRET=super_secret_access_token_key_123456
 JWT_REFRESH_SECRET=super_secret_refresh_token_key_123456
@@ -86,10 +84,9 @@ VITE_API_URL=http://localhost:5000/api
 VITE_SOCKET_URL=http://localhost:5000
 ```
 
-### **3. Launch Real MongoDB & Development Servers**
+### **3. Launch Development Servers**
 
-* **Option A — Local MongoDB**: Ensure `mongod` service is running locally on port `27017` (`net start MongoDB` or `mongod`).
-* **Option B — MongoDB Atlas**: Paste your cloud connection string into `MONGO_URI` in `backend/.env`.
+* **Cloud MongoDB Atlas**: Paste your cloud connection string into `MONGO_URI` in `backend/.env`.
 
 Run the backend Express server:
 ```bash
