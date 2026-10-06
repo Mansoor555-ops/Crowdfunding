@@ -13,7 +13,7 @@ const seedDatabase = async () => {
       return;
     }
 
-    console.log('Seeding database with mock creators, campaigns, comments, and donations...');
+    console.log('Seeding database with authentic Indian creators, campaigns, comments, and donations in ₹ (INR)...');
 
     const getOrCreateUser = async (userData) => {
       const existingUser = await User.findOne({ email: userData.email });
@@ -26,11 +26,11 @@ const seedDatabase = async () => {
 
     // 1. Create or reuse Users
     const creatorUser = await getOrCreateUser({
-      name: 'Elena Rostova',
+      name: 'Ananya Sharma',
       email: 'creator@fundrise.com',
       password: 'password123',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
-      bio: 'Industrial Designer & Publisher based in Copenhagen. Focused on tactile materials and sleek product engineering.',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
+      bio: 'Craft Revivalist & Sustainable Designer based in Jaipur. Dedicated to empowering rural artisans through contemporary product design.',
       role: 'creator'
     });
 
@@ -39,149 +39,164 @@ const seedDatabase = async () => {
       email: 'donor@fundrise.com',
       password: 'password123',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
-      bio: 'Technology enthusiast and startup backer. Passionate about green tech and tactile physical print.',
+      bio: 'Tech enthusiast, independent backer, and advocate for sustainable grassroot innovations across India.',
       role: 'donor'
     });
 
     const adminUser = await getOrCreateUser({
-      name: 'Platform Compliance',
+      name: 'FundRise Compliance & Safety',
       email: 'admin@fundrise.com',
       password: 'password123',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
-      bio: 'FundRise compliance auditor team.',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
+      bio: 'Platform trust & verification lead.',
       role: 'admin'
     });
 
-    // 2. Create 6 Rich Campaigns
+    // 2. Create 6 Authentic Indian Campaigns in ₹ (INR)
     const campaignsData = [
       {
-        title: 'Orbital Key: The Zero-Gravity EDC Carabiner',
-        description: 'Orbital Key is a premium grade 5 titanium carabiner designed with magnetic centering rails. Engineered for everyday carry (EDC) enthusiasts who demand clean mechanics, zero-gravity tactile spring gates, and sleek structural shapes.\n\nEvery carabiner is bead-blasted to a matte velvet texture, weighing only 18 grams while supporting up to 150 lbs of static load. We are seeking funds for precision CNC tooling and manufacturing.',
-        category: 'Tech',
-        fundingGoal: 25000,
-        amountRaised: 18450,
-        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12),
-        coverImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+        title: 'KalaNetra: Preserving Traditional Block Printing Artisans',
+        description: 'KalaNetra is a grassroots initiative uniting 45 master craftspeople in Bagru, Rajasthan. We are creating a sustainable co-op facility equipped with eco-friendly natural dye extraction units, ergonomically designed carving tables, and direct global marketplace access.\n\nYour backing helps us construct water filtration systems that recycle 90% of dyeing water, keeping local rivers clean while preserving centuries-old block printing heritage for future generations.',
+        category: 'Creative',
+        fundingGoal: 250000,
+        amountRaised: 185000,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
+        coverImage: 'https://images.unsplash.com/photo-1606744888344-493238951221?auto=format&fit=crop&q=80&w=800',
         gallery: [
-          'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&q=80&w=800'
+          'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1582562124811-c09040d0a901?auto=format&fit=crop&q=80&w=800'
         ],
         status: 'active',
         creator: creatorUser._id,
-        backersCount: 142
+        backersCount: 142,
+        rewardTiers: [
+          { title: 'Artisan Supporter', description: 'Handcrafted natural dye postcard set & digital backer wall mention.', minimumAmount: 500, estimatedDelivery: 'Nov 2026' },
+          { title: 'Hand-loomed Stole', description: 'Authentic 100% organic cotton block printed stole handcrafted by Bagru artisans.', minimumAmount: 2500, estimatedDelivery: 'Dec 2026' }
+        ]
       },
       {
-        title: 'Linen & Ink: A Minimalist Editorial Magazine',
-        description: 'Linen & Ink is an independent biannual print publication exploring slow architecture, tactile pottery, and underground editorial typography.\n\nPrinted on 120gsm FSC-certified uncoated linen paper with flat-lay binding, every issue is a collectible design object designed to slow down your visual consumption. Issue 01 features in-depth interviews with minimalist architects from Kyoto and ceramicists from Copenhagen.',
-        category: 'Creative',
-        fundingGoal: 8000,
-        amountRaised: 9400,
-        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6),
-        coverImage: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800',
+        title: 'SunGrid Himalayas: Solar Power for Off-Grid Village Schools',
+        description: 'Over 12 remote mountain schools in Spiti Valley face severe winter blackouts, stopping digital education for over 600 children. SunGrid Himalayas installs heavy-duty lithium-battery solar microgrids designed specifically for sub-zero Himalayan winters.\n\nWe provide reliable heating, LED lighting, and internet connectivity, ensuring uninterrupted learning even during heavy snowfall.',
+        category: 'Community',
+        fundingGoal: 500000,
+        amountRaised: 520000,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5),
+        coverImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&q=80&w=800',
         gallery: [
-          'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?auto=format&fit=crop&q=80&w=800'
+          'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&q=80&w=800'
         ],
         status: 'funded',
         creator: creatorUser._id,
-        backersCount: 88
+        backersCount: 210,
+        rewardTiers: [
+          { title: 'Solar Backer', description: 'Personalized thank you video from Himalayan students and digital certificate.', minimumAmount: 1000, estimatedDelivery: 'Oct 2026' }
+        ]
       },
       {
-        title: 'The Clean Canopy: Urban Air Filter Installations',
-        description: 'We are installing bio-engineered algae-based air filtration columns in high-traffic urban plazas. These canopies naturally consume carbon dioxide and release oxygen at a velocity equivalent to 200 mature street trees, helping clean local air.\n\nEvery Clean Canopy features integrated seating, public USB chargers, and fine particulate sensors broadcasting local air quality indexes in real-time. Funds go towards fabrication materials and botanical assembly.',
-        category: 'Community',
-        fundingGoal: 45000,
-        amountRaised: 12200,
-        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 28),
-        coverImage: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&q=80&w=800',
-        gallery: [
-          'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&q=80&w=800'
-        ],
+        title: 'ChaiStray: Eco-Friendly Terracotta Cup Recycling Drive',
+        description: 'Every day millions of single-use plastic cups clutter urban streets. ChaiStray manufactures 100% biodegradable clay kulhads using locally sourced red soil and bio-gas kilns.\n\nWe are deploying smart deposit-return kiosks across Bangalore tech parks where used clay cups are collected, crushed, and converted into nutrient-rich soil additives for urban gardens.',
+        category: 'Environment',
+        fundingGoal: 150000,
+        amountRaised: 92000,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 20),
+        coverImage: 'https://images.unsplash.com/photo-1577968897966-3d4325b36b61?auto=format&fit=crop&q=80&w=800',
+        gallery: [],
         status: 'active',
         creator: creatorUser._id,
-        backersCount: 95
+        backersCount: 88,
+        rewardTiers: [
+          { title: 'Kulhad Starter Pack', description: 'Set of 6 handcrafted glazed tea kulhads delivered to your home.', minimumAmount: 1200, estimatedDelivery: 'Nov 2026' }
+        ]
       },
       {
-        title: 'EmpowerEd: Digital Literacy Kits for Kids',
-        description: 'EmpowerEd distributes portable computer kits and digital literacy curriculums to kids in rural areas. Our kits are built around low-cost single board computers, containing offline coding modules, typing games, and design tutorials.\n\nWe provide solar power banks to ensure operations in areas with intermittent grid access, enabling classrooms to explore technology skills safely.',
-        category: 'Education',
-        fundingGoal: 15000,
-        amountRaised: 4200,
+        title: 'IndicVerse: Open Source Mythological Indie RPG Game',
+        description: 'IndicVerse is a story-driven action RPG inspired by ancient Indian folklore and epics, developed by an independent team of 6 game developers in Hyderabad.\n\nFeaturing hand-painted 3D environments, authentic classical Indian soundtracks played on Sitar & Tabla, and immersive combat mechanics. Funds will be used for full voice acting and motion capture recording.',
+        category: 'Tech',
+        fundingGoal: 350000,
+        amountRaised: 215000,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 25),
+        coverImage: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800',
+        gallery: [],
+        status: 'active',
+        creator: creatorUser._id,
+        backersCount: 164,
+        rewardTiers: [
+          { title: 'Digital Game Key', description: 'Steam/PC Digital Download Key + Beta Access Pass.', minimumAmount: 899, estimatedDelivery: 'Jan 2027' }
+        ]
+      },
+      {
+        title: 'NadiRaksha: River Plastics Cleanup Patrol Boats',
+        description: 'NadiRaksha builds solar-powered autonomous trash collector boats that intercept floating plastic waste in city rivers before it reaches the Arabian Sea and Bay of Bengal.\n\nEach boat captures up to 500kg of plastic daily using automated conveyor belts and solar batteries. Back us to deploy our first 3 patrol units on the Yamuna and Mula-Mutha rivers.',
+        category: 'Charity',
+        fundingGoal: 400000,
+        amountRaised: 310000,
         deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 18),
+        coverImage: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800',
+        gallery: [],
+        status: 'active',
+        creator: creatorUser._id,
+        backersCount: 195,
+        rewardTiers: [
+          { title: 'Clean River Guardian', description: 'Name engraved on Patrol Boat #01 hull + quarterly impact metrics report.', minimumAmount: 2000, estimatedDelivery: 'Dec 2026' }
+        ]
+      },
+      {
+        title: 'Vedas & Science: Interactive STEM Learning Kits',
+        description: 'Hands-on experiential science experiment boxes for school kids combining modern physics & chemistry with historic Indian scientific discoveries—from zero to metallurgy.\n\nEvery kit includes safe lab materials, augmented reality (AR) cards, and step-by-step experiment workbooks translated into 5 regional languages.',
+        category: 'Education',
+        fundingGoal: 180000,
+        amountRaised: 145000,
+        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10),
         coverImage: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800',
         gallery: [],
         status: 'active',
         creator: creatorUser._id,
-        backersCount: 32
-      },
-      {
-        title: 'Resilient Reefs: Marine Sanctuary Restoration',
-        description: 'An ocean conservation initiative planting heat-tolerant coral nurseries across damaged barrier reefs. Our team of marine biologists uses 3D-printed ceramic reef structures to accelerate coral attachment by 300%.\n\nJoin our community of ocean backers and receive monthly underwater camera updates monitoring coral growth in real-time.',
-        category: 'Charity',
-        fundingGoal: 30000,
-        amountRaised: 22100,
-        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 22),
-        coverImage: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800',
-        gallery: [
-          'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=800'
-        ],
-        status: 'active',
-        creator: creatorUser._id,
-        backersCount: 164
-      },
-      {
-        title: 'Acoustic Minimal: Solid Walnut Desktop Speakers',
-        description: 'Handcrafted active studio monitors sculpted from solid American walnut and brushed brass. Featuring audiophile custom silk dome tweeters and passive bass radiators tuned for warm, room-filling soundscapes.\n\nDesigned for minimalist workspaces, each pair comes individually numbered with a certificate of acoustic tuning.',
-        category: 'Tech',
-        fundingGoal: 20000,
-        amountRaised: 15800,
-        deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
-        coverImage: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80&w=800',
-        gallery: [],
-        status: 'active',
-        creator: creatorUser._id,
-        backersCount: 110
+        backersCount: 110,
+        rewardTiers: [
+          { title: 'STEM Explorer Kit', description: 'Complete 15-experiment lab kit delivered to a school of your choice.', minimumAmount: 1500, estimatedDelivery: 'Nov 2026' }
+        ]
       }
     ];
 
     const seededCampaigns = [];
     for (const data of campaignsData) {
       const slug = data.title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
-      const existingCampaign = await Campaign.findOne({ title: data.title });
-      const campaign = existingCampaign || new Campaign({ ...data, slug });
-      if (!existingCampaign) {
-        await campaign.save();
-      }
+      const campaign = new Campaign({ ...data, slug });
+      await campaign.save();
       seededCampaigns.push(campaign);
     }
 
-    // 3. Create mock donations
+    // 3. Create mock donations in ₹ (INR)
     const mockDonations = [
       {
-        amount: 250,
+        amount: 2500,
         donor: donorUser._id,
-        campaign: seededCampaigns[0]._id, // Orbital Key
+        campaign: seededCampaigns[0]._id, // KalaNetra
         isAnonymous: false,
         status: 'succeeded',
         paymentIntentId: 'pi_mock_seed_1',
-        rewardTier: 'Gold Backer'
+        receiptNumber: 'FR-IN-202610-1001',
+        rewardTier: 'Hand-loomed Stole'
       },
       {
-        amount: 50,
+        amount: 500,
         donor: null,
         campaign: seededCampaigns[0]._id,
         isAnonymous: true,
         status: 'succeeded',
         paymentIntentId: 'pi_mock_seed_2',
-        rewardTier: 'Standard Backer'
+        receiptNumber: 'FR-IN-202610-1002',
+        rewardTier: 'Artisan Supporter'
       },
       {
-        amount: 100,
+        amount: 1000,
         donor: donorUser._id,
-        campaign: seededCampaigns[1]._id, // Linen & Ink
+        campaign: seededCampaigns[1]._id, // SunGrid
         isAnonymous: false,
         status: 'succeeded',
         paymentIntentId: 'pi_mock_seed_3',
-        rewardTier: 'Silver Backer'
+        receiptNumber: 'FR-IN-202610-1003',
+        rewardTier: 'Solar Backer'
       }
     ];
 
@@ -194,14 +209,14 @@ const seedDatabase = async () => {
     const mockUpdates = [
       {
         campaign: seededCampaigns[0]._id,
-        title: 'CNC Precision Prototype Verified!',
-        content: 'We received our first Grade 5 Titanium precision CNC prototype from our manufacturing partner today. The magnetic gates lock with extreme centering alignment. Visual tolerances are pristine. Next up is load testing!',
-        images: ['https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=800']
+        title: 'Natural Dye Extraction Unit Installed in Bagru!',
+        content: 'We are excited to share that our zero-chemical indigo & turmeric dye vats have been successfully set up in the artisan workshop. Water filtration testing begins next week!',
+        images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=800']
       },
       {
         campaign: seededCampaigns[1]._id,
-        title: 'Linen Paper Proofs Approved',
-        content: 'The 120gsm FSC-certified uncoated linen paper proofs just arrived from our press in Copenhagen. The ink saturation and tactile tooth feel incredible!',
+        title: 'Solar Batteries Arrived in Spiti Valley',
+        content: 'Despite early autumn rains, our team successfully transported the sub-zero lithium battery banks to Kaza village. Solar installation on School #01 is underway!',
         images: []
       }
     ];
@@ -216,17 +231,12 @@ const seedDatabase = async () => {
       {
         campaign: seededCampaigns[0]._id,
         user: donorUser._id,
-        text: 'The titanium finish looks incredible! Does it include a key ring attachment loop?'
+        text: 'Wonderful initiative preserving traditional Rajasthani craft! Will backer updates include photos of the indigo dyeing process?'
       },
       {
         campaign: seededCampaigns[0]._id,
         user: creatorUser._id,
-        text: 'Yes! The top loop is precision milled to fit standard split rings up to 3.5mm thick.'
-      },
-      {
-        campaign: seededCampaigns[1]._id,
-        user: donorUser._id,
-        text: 'Super excited for Issue 01! Will international shipping include tracking?'
+        text: 'Namaste Mansoor! Yes, we will post monthly photo journals directly from the Bagru workshops.'
       }
     ];
 
@@ -242,7 +252,7 @@ const seedDatabase = async () => {
     });
     await mockBookmark.save();
 
-    console.log('✓ Seeding complete. Pre-populated mock campaigns, updates, comments, and bookmarks.');
+    console.log('✓ Seeding complete. Pre-populated authentic Indian crowdfunding campaigns in ₹ (INR).');
   } catch (err) {
     console.error('Error seeding database:', err);
   }

@@ -129,7 +129,7 @@ export default function Admin() {
     {
       header: 'Funding Goal',
       accessorKey: 'fundingGoal',
-      cell: (row) => `$${row.fundingGoal?.toLocaleString()}`
+      cell: (row) => `₹${row.fundingGoal?.toLocaleString('en-IN')}`
     },
     {
       header: 'Status',
@@ -225,12 +225,12 @@ export default function Admin() {
     {
       header: 'Amount',
       accessorKey: 'amount',
-      cell: (row) => <span className="font-bold text-text-ink">${row.amount}</span>
+      cell: (row) => <span className="font-bold text-text-ink">₹{row.amount?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Net Payable',
       accessorKey: 'netAmount',
-      cell: (row) => <span className="font-bold text-emerald-600">${row.netAmount}</span>
+      cell: (row) => <span className="font-bold text-emerald-600">₹{row.netAmount?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Status',
@@ -346,7 +346,7 @@ export default function Admin() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <Stat title="Total Users" value={stats.totalUsers.toString()} icon={Users} />
         <Stat title="Total Campaigns" value={stats.totalCampaigns.toString()} icon={ShieldCheck} />
-        <Stat title="Total Pledged" value={`$${stats.totalRaised.toLocaleString()}`} icon={DollarSign} />
+        <Stat title="Total Pledged" value={`₹${stats.totalRaised.toLocaleString('en-IN')}`} icon={DollarSign} />
         <Stat title="Pending Moderation" value={stats.pendingCampaigns.toString()} icon={AlertTriangle} />
       </div>
 

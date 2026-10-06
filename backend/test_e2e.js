@@ -78,12 +78,12 @@ async function runE2ETests() {
 
   // Test 6: Create New Campaign as Creator
   const newCamp = await request('/campaigns', 'POST', {
-    title: `E2E Test Innovation ${Date.now()}`,
-    category: 'Tech',
-    description: 'This is an end-to-end automated verification campaign for testing funding and payout lifecycles.',
-    fundingGoal: 5000,
+    title: `KalaCraft Artisan Initiative ${Date.now()}`,
+    category: 'Creative',
+    description: 'This is an end-to-end automated verification campaign for testing funding and payout lifecycles in Indian Rupees (INR).',
+    fundingGoal: 50000,
     deadline: new Date(Date.now() + 86400000 * 14).toISOString(),
-    coverImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+    coverImage: 'https://images.unsplash.com/photo-1606744888344-493238951221?auto=format&fit=crop&q=80&w=800',
     status: 'pending_review'
   }, creatorToken);
   console.log('6. Campaign Creation (Pending Review):', newCamp.status === 201 ? '✅ PASSED' : '❌ FAILED', newCamp.body.campaign?.slug);
@@ -103,16 +103,16 @@ async function runE2ETests() {
 
   // Test 9: Backer posts comment
   const comment = await request(`/campaigns/${campaignId}/comments`, 'POST', {
-    text: 'Excited for this innovation! Supporting from end-to-end test.'
+    text: 'Namaste! Proud to support this traditional craft initiative from Jaipur.'
   }, donorToken);
   console.log('9. Backer Comment Post:', comment.status === 201 ? '✅ PASSED' : '❌ FAILED', comment.body.comment?.text);
 
   // Test 10: Backer initiates donation intent & confirms payment
   const intent = await request('/donations/intent', 'POST', {
     campaignId,
-    amount: 150,
+    amount: 1500,
     isAnonymous: false,
-    rewardTier: 'Standard Backer'
+    rewardTier: 'Artisan Supporter'
   }, donorToken);
   console.log('10. Donation Payment Intent:', intent.status === 200 ? '✅ PASSED' : '❌ FAILED', intent.body.paymentIntentId);
 
@@ -123,20 +123,20 @@ async function runE2ETests() {
 
   // Test 11: Verify campaign funding updated
   const updatedCamp = await request(`/campaigns/${campaignSlug}`);
-  console.log('12. Campaign Funding Updated:', updatedCamp.body.campaign?.amountRaised === 150 ? '✅ PASSED' : '❌ FAILED', `Raised: $${updatedCamp.body.campaign?.amountRaised}`);
+  console.log('12. Campaign Funding Updated:', updatedCamp.body.campaign?.amountRaised === 1500 ? '✅ PASSED' : '❌ FAILED', `Raised: ₹${updatedCamp.body.campaign?.amountRaised}`);
 
   // Test 12: Creator publishes update
   const pubUpdate = await request(`/campaigns/${campaignId}/updates`, 'POST', {
-    title: 'Manufacturing Milestone Met!',
-    content: 'We are thrilled to share that prototype manufacturing has officially begun.'
+    title: 'Natural Dye Unit Setup Completed!',
+    content: 'We have successfully set up zero-chemical natural dye units in our Bagru artisan facility.'
   }, creatorToken);
   console.log('13. Creator Update Post:', pubUpdate.status === 201 ? '✅ PASSED' : '❌ FAILED');
 
   // Test 13: Creator requests payout
   const payoutReq = await request('/creator/payouts', 'POST', {
     campaignId,
-    amount: 100,
-    destinationAccount: 'Stripe Direct Connect (*8831)'
+    amount: 1000,
+    destinationAccount: 'HDFC Bank Direct Account (*8831)'
   }, creatorToken);
   console.log('14. Creator Payout Request:', payoutReq.status === 201 ? '✅ PASSED' : '❌ FAILED', payoutReq.body.payout?.netAmount);
 

@@ -73,7 +73,7 @@ export const Select = forwardRef(({ label, error, options = [], className = '', 
 })
 Select.displayName = 'Select'
 
-export const CurrencyInput = forwardRef(({ label, error, symbol = '$', className = '', ...props }, ref) => {
+export const CurrencyInput = forwardRef(({ label, error, symbol = '₹', className = '', ...props }, ref) => {
   return (
     <div className="w-full">
       {label && (

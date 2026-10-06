@@ -25,7 +25,7 @@ export default function CreateCampaign() {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('Tech')
   const [description, setDescription] = useState('')
-  const [fundingGoal, setFundingGoal] = useState('10000')
+  const [fundingGoal, setFundingGoal] = useState('100000')
   const [deadline, setDeadline] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + 30)
@@ -245,7 +245,7 @@ export default function CreateCampaign() {
           <div className="space-y-6">
             <h3 className="text-xl font-display font-bold text-text-ink">3. Funding & Timeline</h3>
             <CurrencyInput
-              label="Funding Goal (USD)"
+              label="Funding Goal (INR ₹)"
               value={fundingGoal}
               onChange={(e) => setFundingGoal(e.target.value)}
               required

@@ -135,7 +135,7 @@ export default function CreatorDashboard() {
     {
       header: 'Pledge Amount',
       accessorKey: 'amount',
-      cell: (row) => <span className="font-bold text-emerald-600">${row.amount}</span>
+      cell: (row) => <span className="font-bold text-emerald-600">₹{row.amount?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Reward Tier',
@@ -158,17 +158,17 @@ export default function CreatorDashboard() {
     {
       header: 'Requested Amount',
       accessorKey: 'amount',
-      cell: (row) => <span className="font-bold text-text-ink">${row.amount}</span>
+      cell: (row) => <span className="font-bold text-text-ink">₹{row.amount?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Platform Fee (5%)',
       accessorKey: 'platformFee',
-      cell: (row) => <span className="text-red-600 font-medium">-${row.platformFee}</span>
+      cell: (row) => <span className="text-red-600 font-medium">-₹{row.platformFee?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Net Payable',
       accessorKey: 'netAmount',
-      cell: (row) => <span className="font-bold text-emerald-600">${row.netAmount}</span>
+      cell: (row) => <span className="font-bold text-emerald-600">₹{row.netAmount?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Status',
@@ -205,10 +205,10 @@ export default function CreatorDashboard() {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <Stat title="Total Raised" value={`$${stats.totalRaised.toLocaleString()}`} icon={TrendingUp} />
+        <Stat title="Total Raised" value={`₹${stats.totalRaised.toLocaleString('en-IN')}`} icon={TrendingUp} />
         <Stat title="Total Backers" value={stats.totalBackers.toString()} icon={Users} />
         <Stat title="Active Projects" value={stats.activeCampaigns.toString()} icon={Package} />
-        <Stat title="Available Balance" value={`$${stats.availableBalance.toLocaleString()}`} icon={Wallet} />
+        <Stat title="Available Balance" value={`₹${stats.availableBalance.toLocaleString('en-IN')}`} icon={Wallet} />
       </div>
 
       {/* Tabs */}
@@ -301,7 +301,7 @@ export default function CreatorDashboard() {
       <Modal isOpen={payoutModalOpen} onClose={() => setPayoutModalOpen(false)} title="Request Payout Withdrawal">
         <form onSubmit={handlePayoutSubmit} className="space-y-6">
           <div className="p-4 bg-accent-violet/10 rounded-2xl border border-accent-violet/20 text-xs space-y-1">
-            <span className="font-bold text-accent-violet block">Available Balance: ${stats.availableBalance.toLocaleString()}</span>
+            <span className="font-bold text-accent-violet block">Available Balance: ₹{stats.availableBalance.toLocaleString('en-IN')}</span>
             <p className="text-text-secondary">Platform fee of 5% will be automatically deducted upon approval.</p>
           </div>
 
@@ -315,7 +315,7 @@ export default function CreatorDashboard() {
           )}
 
           <CurrencyInput
-            label="Payout Amount ($)"
+            label="Payout Amount (INR ₹)"
             value={payoutAmount}
             onChange={(e) => setPayoutAmount(e.target.value)}
             placeholder="0.00"

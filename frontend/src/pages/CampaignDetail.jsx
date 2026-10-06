@@ -44,7 +44,7 @@ export default function CampaignDetail() {
 
   // Donation Modal & Flow
   const [donationModalOpen, setDonationModalOpen] = useState(false)
-  const [donationAmount, setDonationAmount] = useState('25')
+  const [donationAmount, setDonationAmount] = useState('500')
   const [selectedReward, setSelectedReward] = useState(null)
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [donationStep, setDonationStep] = useState('amount') // 'amount' | 'payment' | 'success'
@@ -267,10 +267,10 @@ export default function CampaignDetail() {
             <div>
               <ProgressBar value={campaign.amountRaised} max={campaign.fundingGoal} className="h-3 mb-4" />
               <div className="text-4xl font-display font-bold text-text-ink mb-1">
-                ${(campaign.amountRaised || 0).toLocaleString()}
+                ₹{(campaign.amountRaised || 0).toLocaleString('en-IN')}
               </div>
               <p className="text-xs text-text-muted font-medium">
-                pledged of ${(campaign.fundingGoal || 0).toLocaleString()} goal ({percentage}%)
+                pledged of ₹{(campaign.fundingGoal || 0).toLocaleString('en-IN')} goal ({percentage}%)
               </p>
             </div>
 
@@ -364,7 +364,7 @@ export default function CampaignDetail() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-xl font-display font-bold text-text-ink">{reward.title}</h4>
-                        <span className="text-lg font-bold text-accent-violet">${reward.minimumAmount}+</span>
+                        <span className="text-lg font-bold text-accent-violet">₹{(reward.minimumAmount || 0).toLocaleString('en-IN')}+</span>
                       </div>
                       <p className="text-sm text-text-secondary mb-6">{reward.description}</p>
                       {reward.estimatedDelivery && (
@@ -378,7 +378,7 @@ export default function CampaignDetail() {
                       disabled={campaign.status !== 'active'}
                       className="w-full py-3 bg-text-ink hover:opacity-90 text-white rounded-full font-semibold text-sm transition-all"
                     >
-                      Select ${reward.minimumAmount} Tier
+                      Select ₹{(reward.minimumAmount || 0).toLocaleString('en-IN')} Tier
                     </button>
                   </div>
                 ))
@@ -527,7 +527,7 @@ export default function CampaignDetail() {
         {donationStep === 'amount' && (
           <div className="space-y-6">
             <CurrencyInput
-              label="Contribution Amount (USD)"
+              label="Contribution Amount (INR ₹)"
               value={donationAmount}
               onChange={(e) => setDonationAmount(e.target.value)}
             />
@@ -563,7 +563,7 @@ export default function CampaignDetail() {
             <div>
               <h3 className="text-2xl font-display font-bold text-text-ink mb-2">Thank you for your support!</h3>
               <p className="text-sm text-text-secondary">
-                Your pledge of <span className="font-bold text-text-ink">${donationAmount}</span> to "{campaign.title}" has been successfully recorded.
+                Your pledge of <span className="font-bold text-text-ink">₹{parseFloat(donationAmount || '0').toLocaleString('en-IN')}</span> to "{campaign.title}" has been successfully recorded.
               </p>
             </div>
 

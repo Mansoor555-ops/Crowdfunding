@@ -90,8 +90,8 @@ export function CampaignCard({ campaign, onBookmarkToggle, isBookmarkedInitial =
 
           <div className="flex items-center justify-between text-sm">
             <div>
-              <span className="text-lg font-display font-bold text-text-ink">${(campaign.amountRaised || 0).toLocaleString()}</span>
-              <span className="text-xs text-text-muted ml-1 font-normal">raised of ${(campaign.fundingGoal || 0).toLocaleString()}</span>
+              <span className="text-lg font-display font-bold text-text-ink">₹{(campaign.amountRaised || 0).toLocaleString('en-IN')}</span>
+              <span className="text-xs text-text-muted ml-1 font-normal">raised of ₹{(campaign.fundingGoal || 0).toLocaleString('en-IN')}</span>
             </div>
             <span className="text-xs font-bold text-accent-violet bg-accent-violet/10 px-2.5 py-1 rounded-full">
               {percentage}%

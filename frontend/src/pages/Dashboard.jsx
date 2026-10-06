@@ -68,7 +68,7 @@ export default function Dashboard() {
     {
       header: 'Amount',
       accessorKey: 'amount',
-      cell: (row) => <span className="font-bold text-emerald-600">${row.amount}</span>
+      cell: (row) => <span className="font-bold text-emerald-600">₹{row.amount?.toLocaleString('en-IN')}</span>
     },
     {
       header: 'Date',
@@ -117,7 +117,7 @@ export default function Dashboard() {
 
       {/* Overview Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <Stat title="Total Pledged" value={`$${totalContributed.toLocaleString()}`} icon={Heart} />
+        <Stat title="Total Pledged" value={`₹${totalContributed.toLocaleString('en-IN')}`} icon={Heart} />
         <Stat title="Campaigns Backed" value={uniqueCampaignsBacked.toString()} icon={ShieldCheck} />
         <Stat title="Saved Bookmarks" value={bookmarks.length.toString()} icon={Bookmark} />
       </div>
@@ -233,7 +233,7 @@ export default function Dashboard() {
 
             <div className="flex items-center justify-between p-4 bg-accent-violet/10 rounded-2xl border border-accent-violet/20">
               <span className="font-display font-bold text-text-ink text-sm">Total Contribution</span>
-              <span className="font-display font-bold text-accent-violet text-2xl">${selectedReceipt.amount} USD</span>
+              <span className="font-display font-bold text-accent-violet text-2xl">₹{selectedReceipt.amount?.toLocaleString('en-IN')} INR</span>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">

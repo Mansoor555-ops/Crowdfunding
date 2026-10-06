@@ -77,13 +77,13 @@ export default function Home() {
 
             <Reveal delay={0.1}>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-text-ink tracking-tight leading-[1.1]">
-                Fund ideas that shape the future.
+                Back ideas that create real impact across India.
               </h1>
             </Reveal>
 
             <Reveal delay={0.2}>
               <p className="text-lg text-text-secondary leading-relaxed max-w-xl font-normal">
-                Discover breakthrough technology, creative ventures, and community projects. Connect directly with creators and turn bold visions into reality.
+                Discover independent creators, heritage craftspeople, green technology, and community causes. Connect directly with makers and bring impactful stories to life.
               </p>
             </Reveal>
 
@@ -105,7 +105,7 @@ export default function Home() {
               <div className="pt-6 border-t border-border-ink/10 grid grid-cols-3 gap-6">
                 <div>
                   <div className="text-2xl font-display font-bold text-text-ink">
-                    <AnimatedCounter value={stats.totalRaised || 125000} prefix="$" />
+                    <AnimatedCounter value={stats.totalRaised || 1450000} prefix="₹" />
                   </div>
                   <div className="text-xs text-text-muted font-medium mt-1">Total Pledged</div>
                 </div>
@@ -113,7 +113,7 @@ export default function Home() {
                   <div className="text-2xl font-display font-bold text-text-ink">
                     <AnimatedCounter value={stats.totalBackers || 840} />
                   </div>
-                  <div className="text-xs text-text-muted font-medium mt-1">Backers Worldwide</div>
+                  <div className="text-xs text-text-muted font-medium mt-1">Backers Community</div>
                 </div>
                 <div>
                   <div className="text-2xl font-display font-bold text-text-ink">
