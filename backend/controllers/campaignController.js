@@ -75,9 +75,16 @@ const createCampaign = async (req, res) => {
 
     await campaign.save();
 
+    // Auto-upgrade donor role to creator if creating their first campaign
+    if (req.user && req.user.role === 'donor') {
+      req.user.role = 'creator';
+      await req.user.save();
+    }
+
     res.status(201).json({
       message: 'Campaign created successfully',
-      campaign
+      campaign,
+      userRole: req.user ? req.user.role : 'creator'
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error during campaign creation.' });
@@ -103,7 +110,7 @@ const getCampaigns = async (req, res) => {
         query.status = status;
       }
     } else if (!creator) {
-      query.status = 'active';
+      query.status = { $nin: ['draft', 'rejected', 'cancelled'] };
     }
 
     // Filter by category

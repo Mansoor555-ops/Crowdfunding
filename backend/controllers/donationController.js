@@ -108,8 +108,8 @@ const createPaymentIntent = async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found.' });
     }
 
-    if (campaign.status !== 'active') {
-      return res.status(400).json({ error: 'This campaign is no longer accepting donations.' });
+    if (campaign.status === 'cancelled' || campaign.status === 'rejected' || campaign.status === 'expired') {
+      return res.status(400).json({ error: 'This campaign is closed and cannot accept new pledges.' });
     }
 
     let clientSecret = '';
